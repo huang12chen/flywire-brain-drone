@@ -37,7 +37,7 @@
            font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; }
   #banner { position: fixed; top: 42%; width: 100%; text-align: center; font-size: 46px; letter-spacing: 8px;
             color: #fff; text-shadow: 0 3px 18px rgba(0,0,0,.5); opacity: 0; transition: opacity .5s; pointer-events: none; }
-  /* Phase 1/2: Flight telemetry bars (motor RPM) */
+  /* Phase 1/2: Flight telemetry bars (motor speeds) */
   .mbar { display:inline-block; width:78px; height:8px; background:#0b1420; border:1px solid var(--line); border-radius:4px; overflow:hidden; vertical-align:middle; }
   .mbar i { display:block; height:100%; width:0; background:linear-gradient(90deg,#2e8b57,#7fd1ff); }
 </style>
@@ -45,20 +45,20 @@
 <body>
 <div id="hud" class="panel">
   <h1>Fruit Fly · Micro World</h1>
-  Scene：<b id="mScene">Meadow</b>　Weather：<b id="mWeather">Sunny</b><br>
-  Body：<b id="mBody">Fruit Fly</b>　Control：<span id="mMode" class="tag ok">Bionic</span><br>
+  Scene: <b id="mScene">Meadow</b>　Weather: <b id="mWeather">Sunny</b><br>
+  Body: <b id="mBody">Fruit Fly</b>　Control: <span id="mMode" class="tag ok">Bionic</span><br>
   <hr>
-  Loom Rate：<b id="mLoom">0.00</b> rad/s<br>
-  Wind |u|：<b id="mWind">0.0000</b><br>
-  GF Membrane：<b id="mV">0.00</b>/1.00　<span id="mGF" class="dim">Resting</span><br>
-  Escape Latency：<b id="mLat">—</b><br>
+  Loom Rate: <b id="mLoom">0.00</b> rad/s<br>
+  Wind |u|: <b id="mWind">0.0000</b><br>
+  GF Membrane: <b id="mV">0.00</b>/1.00　<span id="mGF" class="dim">Resting</span><br>
+  Escape Latency: <b id="mLat">—</b><br>
   <hr>
   <span class="dim">Cumulative (Scored Rounds)</span><br>
   Rounds <b id="mRounds">0</b>｜Escapes <b id="mEsc">0</b>｜Hits <b id="mHit">0</b>｜False Alarms <b id="mFA">0</b><br>
   Success Rate <b id="mRate">—</b>｜Direction Error <b id="mAng">—</b>
   <hr>
   <span class="dim">Flight Telemetry (Drone · Flight Dynamics)</span><br>
-  State Machine：<b id="mFsm">—</b><br>
+  State Machine: <b id="mFsm">—</b><br>
   M1 <span class="mbar"><i id="mM1"></i></span>　M2 <span class="mbar"><i id="mM2"></i></span><br>
   M3 <span class="mbar"><i id="mM3"></i></span>　M4 <span class="mbar"><i id="mM4"></i></span><br>
   roll：<b id="mRoll">—</b>　pitch：<b id="mPitch">—</b>
@@ -66,14 +66,14 @@
 
 <div id="god" class="panel">
   <h2>🎛️ God Console</h2>
-  Scene：
-  <button data-scene="meadow" class="on">Sunny Meadow</button>
+  Scene: 
+  <button data-scene="meadow" class="on">Meadow</button>
   <button data-scene="night">Night</button>
   <button data-scene="storm">Storm</button>
   <button data-scene="gale">Gale</button>
-  <br>Body (Selected Agent)：
+  <br>Agent (selected): 
   <button id="bFly">Fruit Fly Body</button><button id="bDrone">Drone Body</button>
-  <br>Control：<button id="bMode">🤖 Bionic (click to switch manual)</button>
+  <br>Control: <button id="bMode">🤖 Bionic (click to switch manual)</button>
   <button id="bPhys">⚙️ Flight Dynamics: ON</button>
   <span class="dim">WASD/Arrow keys when manual, any key = immediate override</span>
   <h2>🔋 Battery (Cosmetic)</h2>
@@ -86,9 +86,9 @@
   <button id="bDel">− Remove Selected</button>
   <select id="selAgent"></select>
   <h2>🎯 Threats</h2>
-  Miss Range：<input id="rMiss" type="range" min="0" max="100" value="0" style="width:110px;vertical-align:middle">
+  Miss Range: <input id="rMiss" type="range" min="0" max="100" value="0" style="width:110px;vertical-align:middle">
   <b id="mMiss">Precision</b><br>
-  <span class="dim">Precision=close-shave ↔ Loose=grazing (default precision)</span><br>
+  <span class="dim">Precision= ↔ =（Precision）</span><br>
   <button id="bBall">Red Pounce Ball</button>
   <button id="bFrog">Frog Tongue</button>
   <button id="bFly2">Dragonfly Dive</button>
@@ -119,32 +119,32 @@
 <script src="brain_panel.js"></script>
 <script>
 /* =====================================================================
- * Fruit Fly · Micro World — 3D Bionic Testbed
- * Physical units: 1 world unit = 1 cm, speed cm/ms. Cue formulas match training exactly:
+ * · — 3D Bionic
+ * ：1  = 1 cm， cm/ms。：
  *   looming = max(0, -2·s·ṙ/(r²+s²))·1000   [rad/s]
- *   wind    = s²·|v|/r² · v̂                 [cm/ms arbitrary units]
+ *   wind    = s²·|v|/r² · v̂                 [cm/ms ]
  * ===================================================================== */
 const FLY_R = 0.55;
 const BODIES = {
-  fly:   { name: 'Fruit Fly',   accel: 0.0022, vmax: 0.16, turn: 0.020, drag: 0.985 },  // lightweight burst
-  drone: { name: 'Drone', accel: 0.0009, vmax: 0.10, turn: 0.008, drag: 0.992 },  // has inertia, acceleration limited
+  fly:   { name: 'Fruit Fly',   accel: 0.0022, vmax: 0.16, turn: 0.020, drag: 0.985 },  // 
+  drone: { name: 'Drone', accel: 0.0009, vmax: 0.10, turn: 0.008, drag: 0.992 },  // 、
 };
-/* ---------- v5 four scenes (key differences: sunny meadow cloud shadows / night firefly moonlight / storm diagonal rain wind streaks / gale airflow particles) ---------- */
+/* ---------- v5 （： / Night / Storm / Gale） ---------- */
 const WEATHER = {
-  meadow: { name: 'Sunny Meadow', sky: 0x8fc4ea, fog: 0xbfd9ec, sun: 1.00, sunColor: 0xfff2d8, wind: [0, 0, 0],            visGain: 1.00, grass: 0x69b34c, sway: 0.35 },
+  meadow: { name: 'Meadow', sky: 0x8fc4ea, fog: 0xbfd9ec, sun: 1.00, sunColor: 0xfff2d8, wind: [0, 0, 0],            visGain: 1.00, grass: 0x69b34c, sway: 0.35 },
   night:  { name: 'Night',     sky: 0x0d1526, fog: 0x131e33, sun: 0.22, sunColor: 0xa8c4ff, wind: [0, 0, 0],            visGain: 0.30, grass: 0x2f5e3a, sway: 0.15 },
   storm:  { name: 'Storm',     sky: 0x9aa8b4, fog: 0xb8c2cc, sun: 0.55, sunColor: 0xd8e2ee, wind: [0.00022, 0, 0.00012], visGain: 0.85, grass: 0x7aa85a, sway: 1.00 },
   gale:   { name: 'Gale',     sky: 0x9fd4f0, fog: 0xcfe8f4, sun: 0.95, sunColor: 0xfff6df, wind: [0.00014, 0, 0.00008], visGain: 0.90, grass: 0x5fae6a, sway: 0.70 },
 };
 let weather = 'meadow';
 
-/* ---------- Base Scene ---------- */
+/* ----------  ---------- */
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, 0.1, 3000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;                     // v5 lighting upgrade: shadow maps
+renderer.shadowMap.enabled = true;                     // v5 ：
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 addEventListener('resize', () => {
@@ -153,9 +153,9 @@ addEventListener('resize', () => {
 });
 
 const ambient = new THREE.AmbientLight(0xffffff, 0.55); scene.add(ambient);
-const hemi = new THREE.HemisphereLight(0xbfd9ff, 0x54683c, 0.28); scene.add(hemi);   // v5 lighting upgrade: sky/ground hemisphere fill
+const hemi = new THREE.HemisphereLight(0xbfd9ff, 0x54683c, 0.28); scene.add(hemi);   // v5 ：/
 const sun = new THREE.DirectionalLight(0xfff2d8, 1.0); sun.position.set(80, 140, 60); scene.add(sun);
-sun.castShadow = true;                                 // v5 lighting upgrade: sun shadow casting
+sun.castShadow = true;                                 // v5 ：
 sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.camera.left = -200; sun.shadow.camera.right = 200;
 sun.shadow.camera.top = 200; sun.shadow.camera.bottom = -200;
@@ -178,9 +178,9 @@ const ground = new THREE.Mesh(
   new THREE.CircleGeometry(700, 48),
   new THREE.MeshLambertMaterial({ color: 0x69b34c }));
 ground.rotation.x = -Math.PI / 2; scene.add(ground);
-ground.receiveShadow = true;                           // v5 lighting upgrade: ground receives shadows
+ground.receiveShadow = true;                           // v5 ：
 
-// Distant mountains
+// Mountains
 const mtnMat = new THREE.MeshLambertMaterial({ color: 0x6f8bb0 });
 for (let i = 0; i < 14; i++) {
   const a = i / 14 * Math.PI * 2, d = 520 + Math.random() * 120;
@@ -201,7 +201,7 @@ for (let i = 0; i < 7; i++) {
   scene.add(c); clouds.push(c);
 }
 
-// Grass (InstancedMesh + vertex shader wind sway)
+// Grass（InstancedMesh + ）
 const GRASS_N = 6000;
 const blade = new THREE.PlaneGeometry(0.35, 2.6, 1, 3);
 blade.translate(0, 1.3, 0);
@@ -288,15 +288,15 @@ pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
 const pollen = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xfff3b0, size: 0.7, transparent: true, opacity: 0.8 }));
 scene.add(pollen);
 
-/* ---------- Body (Fruit Fly / Drone) — v5 refined models in scene_fx.js ---------- */
-function buildFlyMesh() { return FX.buildFlyMesh(FLY_R); }      // red-black compound eyes + six-leg joints + wing veins & flapping + thorax/abdomen segments
-function buildDroneMesh() { return FX.buildDroneMesh(); }       // quadcopter blades + gimbal + indicator lights
+/* ---------- （ / ）—— v5  scene_fx.js ---------- */
+function buildFlyMesh() { return FX.buildFlyMesh(FLY_R); }      // +++
+function buildDroneMesh() { return FX.buildDroneMesh(); }       // ++
 
 const agents = []; let selAgent = null;
 function addAgent(kind, x, z) {
   const spec = BODIES[kind];
   const mesh = kind === 'fly' ? buildFlyMesh() : buildDroneMesh();
-  mesh.position.set(x ?? (Math.random() * 60 - 30), kind === 'fly' ? 8 : 14, z ?? (Math.random() * 60 - 30));   // ?? ensures (0,0) not treated as default
+  mesh.position.set(x ?? (Math.random() * 60 - 30), kind === 'fly' ? 8 : 14, z ?? (Math.random() * 60 - 30));   // ??  (0,0) 
   scene.add(mesh);
   const a = {
     kind, spec, mesh, brain: new SNNRuntime(window.SNN_DATA),
@@ -306,12 +306,12 @@ function addAgent(kind, x, z) {
     manualKeys: {}, wingT: Math.random() * 6,
   };
   agents.push(a); refreshAgentList(); selectAgent(a);
-  toast(`${spec.name} joined the world (${a.bionic ? 'Bionic' : 'Manual'} mode)`);
+  toast(`${spec.name} added to world（${a.bionic ? 'Bionic' : 'Manual'}）`);
   return a;
 }
 function selectAgent(a) {
   selAgent = a; refreshAgentList();
-  document.getElementById('bMode').textContent = a.bionic ? '🤖 Bionic (click to switch manual)' : '🛫 Manual (click to switch bionic)';   // sync button text to match actual mode
+  document.getElementById('bMode').textContent = a.bionic ? '🤖 Bionic (click to switch manual)' : '🛫 Manual (click to switch bionic)';   // ，
 }
 function refreshAgentList() {
   const sel = document.getElementById('selAgent');
@@ -319,33 +319,33 @@ function refreshAgentList() {
     `<option value="${i}" ${a === selAgent ? 'selected' : ''}>#${i + 1} ${a.spec.name}</option>`).join('');
 }
 document.getElementById('selAgent').onchange = (e) => selectAgent(agents[+e.target.value]);
-document.getElementById('bBrain').onclick = () => window.BrainPanel && BrainPanel.toggle();   // 🧠 brain panel toggle
+document.getElementById('bBrain').onclick = () => window.BrainPanel && BrainPanel.toggle();   // 🧠 
 document.getElementById('bBrainX').onclick = () => window.BrainPanel && BrainPanel.toggle();
 document.getElementById('bAddFly').onclick = () => addAgent('fly');
 document.getElementById('bAddDrone').onclick = () => addAgent('drone');
 document.getElementById('bDel').onclick = () => {
   if (!selAgent) return; scene.remove(selAgent.mesh);
   agents.splice(agents.indexOf(selAgent), 1); selAgent = agents[0] || null;
-  if (selAgent) { selectAgent(selAgent); }        // sync bMode text after delete (manual promises "button text follows selection")
+  if (selAgent) { selectAgent(selAgent); }        //  bMode （""）
   else {
     refreshAgentList();
-    document.getElementById('bMode').textContent = '— (No Agent)';
+    document.getElementById('bMode').textContent = '— (no agent)';
   }
 };
 document.getElementById('bFly').onclick = () => swapBody('fly');
 document.getElementById('bDrone').onclick = () => swapBody('drone');
 function swapBody(kind) {
   if (!selAgent || selAgent.kind === kind) return;
-  const keepPos = selAgent.mesh.position.clone();   // swap body in place (old bug: agent had no pos field, teleported to center)
+  const keepPos = selAgent.mesh.position.clone();   // （ bug：agent  pos ，）
   scene.remove(selAgent.mesh);
   selAgent.kind = kind; selAgent.spec = BODIES[kind];
   selAgent.mesh = kind === 'fly' ? buildFlyMesh() : buildDroneMesh();
   selAgent.mesh.position.copy(keepPos);
   scene.add(selAgent.mesh);
-  toast(`Body swap complete: ${BODIES[kind].name} (same brain, new body)`);
+  toast(`Body swap: ${BODIES[kind].name}（same brain, new body）`);
 }
 
-/* ---------- Scene/Weather Switching ---------- */
+/* ---------- / ---------- */
 document.querySelectorAll('[data-scene]').forEach(btn => btn.onclick = () => {
   document.querySelectorAll('[data-scene]').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
@@ -354,30 +354,30 @@ document.querySelectorAll('[data-scene]').forEach(btn => btn.onclick = () => {
   scene.fog = new THREE.Fog(w.fog, 120, 700);
   sky.material.uniforms.top.value.set(weather === 'night' ? 0x0a1224 : 0x4a90d9);
   sky.material.uniforms.bottom.value.set(weather === 'night' ? 0x131e33 : w.fog);
-  sun.intensity = w.sun; sun.color.set(w.sunColor);    // v5: sunlight/moonlight color temperature distinction
+  sun.intensity = w.sun; sun.color.set(w.sunColor);    // v5：/
   ambient.intensity = weather === 'night' ? 0.22 : (weather === 'storm' ? 0.42 : 0.55);
   hemi.intensity = weather === 'night' ? 0.10 : (weather === 'storm' ? 0.18 : 0.28);
   ground.material.color.set(w.grass); grassMat.color.set(w.grass);
   pond.material.color.set(weather === 'night' ? 0x1d3a55 : 0x4aa3d8);
-  pollen.visible = (weather === 'meadow');             // pollen only in sunny meadow
-  if (window.FX) FX.setScene(weather);                 // v5 four-scene differences (cloud shadows/firefly moonlight/diagonal rain wind streaks/airflow particles)
+  pollen.visible = (weather === 'meadow');             // Meadow
+  if (window.FX) FX.setScene(weather);                 // v5 （///）
   document.getElementById('mScene').textContent = w.name;
   document.getElementById('mWeather').textContent =
-    weather === 'storm' ? 'Storm' : (weather === 'gale' ? 'Dry Wind' : (weather === 'night' ? 'Moonlit Night' : 'Sunny'));
+    weather === 'storm' ? 'Storm rain' : (weather === 'gale' ? 'Dry wind' : (weather === 'night' ? 'Moonlit night' : 'Clear'));
   toast(`Scene switched: ${w.name}`);
 });
 scene.fog = new THREE.Fog(0xbfd9ec, 120, 700);
 
-/* ---------- Threats ---------- */
+/* ----------  ---------- */
 const threats = [];
-let missRange = 0;                                   // v5 P4: miss range 0=precision (default) ↔ 1=loose
+let missRange = 0;                                   // v5 P4： 0=Precision（）↔ 1=
 document.getElementById('rMiss').oninput = (e) => {
   missRange = +e.target.value / 100;
-  document.getElementById('mMiss').textContent = missRange < 0.34 ? 'Precision' : (missRange < 0.67 ? 'Medium' : 'Loose');
+  document.getElementById('mMiss').textContent = missRange < 0.34 ? 'Precision' : (missRange < 0.67 ? '' : '');
 };
 function spawnThreat(kind, target) {
   target = target || selAgent || agents[0];
-  if (!target) { toast('Add a fruit fly or drone first'); return null; }
+  if (!target) { toast('Add a fruit fly'); return null; }
   const s = kind === 'ball' ? 1.6 : (kind === 'frog' ? 2.2 : 1.2);
   let mesh, from, speed;
   if (kind === 'ball') {
@@ -397,7 +397,7 @@ function spawnThreat(kind, target) {
     }
     const az = Math.random() * Math.PI * 2, d0 = 40 + Math.random() * 15;
     from = new THREE.Vector3(Math.cos(az) * d0, 1.5, Math.sin(az) * d0);
-    speed = 0.5 + Math.random() * 0.3;   // tongue strike is fast
+    speed = 0.5 + Math.random() * 0.3;   // 
   } else {
     mesh = new THREE.Group();
     const b = new THREE.Mesh(new THREE.ConeGeometry(0.7, 4, 8), new THREE.MeshLambertMaterial({ color: 0x5fc9d8 }));
@@ -407,29 +407,29 @@ function spawnThreat(kind, target) {
     speed = 0.3 + Math.random() * 0.5;
   }
   scene.add(mesh); mesh.position.copy(from);
-  mesh.traverse(o => { if (o.isMesh) o.castShadow = true; });   // v5 lighting upgrade: threat object shadow
-  if (target) target.lat = null;   // new round: clear previous latency residual (prevent stale HUD display)
+  mesh.traverse(o => { if (o.isMesh) o.castShadow = true; });   // v5 ：
+  if (target) target.lat = null;   // Rounds：Rounds（ HUD ）
   const tp = target.mesh.position;
   const dir = tp.clone().sub(from).normalize();
-  // v5 P4: miss range slider (0=precision ↔ 1=loose, default precision) — precision=close-shave, loose=v3 wide grazing
+  // v5 P4：（0=Precision ↔ 1=，Precision）——Precision=，= v3 
   const miss = Math.random() * (1.2 + missRange * 3.3);
-  const tan = new THREE.Vector3(dir.z, 0, -dir.x).normalize();   // tangential chirality matches training frame: M(-r̂₁,r̂₀,0)=(dir.z,0,-dir.x), dir=toward target(to_fly)
-  const dMiss = from.distanceTo(tp) + 1e-9;                      // miss blend coefficient unified miss/(d+1e-9) (aligned with train/evaluate, P5③)
+  const tan = new THREE.Vector3(dir.z, 0, -dir.x).normalize();   // ：M(-r̂₁,r̂₀,0)=(dir.z,0,-dir.x)，dir=(to_fly)
+  const dMiss = from.distanceTo(tp) + 1e-9;                      //  miss/(d+1e-9)（ train/evaluate，P5③）
   const vel = dir.clone().multiplyScalar(Math.sqrt(Math.max(0, 1 - (miss / dMiss) ** 2)))
                  .add(tan.multiplyScalar(miss / dMiss)).normalize()
                  .multiplyScalar(speed);
-  // v5 P3: collision body uses model real size (combined sphere/capsule chain, fixes attack "grazing past" false collision)
-  //   Note: cue size s (=th.r) still used in loom/wind formulas, semantics unchanged; collision uses combined spheres only
+  // v5 P3：（/，""）
+  //   ： s（=th.r） loom/wind ，；
   const col = (x, y, z, r) => ({ o: new THREE.Vector3(x, y, z), r });
   let colliders;
-  if (kind === 'ball') colliders = [col(0, 0, 0, s)];                                  // pounce ball: single sphere = visual radius
-  else if (kind === 'frog') colliders = [col(0, 0, 0, 1.55), col(1.2, 0.3, 0, 1.30),   // frog: flattened body + head combined spheres
+  if (kind === 'ball') colliders = [col(0, 0, 0, s)];                                  // ：=
+  else if (kind === 'frog') colliders = [col(0, 0, 0, 1.55), col(1.2, 0.3, 0, 1.30),   // ：+
                                          col(0, 0, 1.2, 1.10), col(0, 0, -1.2, 1.10), col(-1.2, 0, 0, 1.10)];
-  else colliders = [col(0, 0, 1.5, 0.45), col(0, 0, 0.6, 0.65),                        // dragonfly: capsule chain along body axis (4cm long)
+  else colliders = [col(0, 0, 1.5, 0.45), col(0, 0, 0.6, 0.65),                        // ：（ 4cm）
                     col(0, 0, -0.4, 0.70), col(0, 0, -1.4, 0.62)];
   const th = { kind, mesh, r: s, colliders, pos: from.clone(), vel, miss, target, born: performance.now(),
-               counted: miss < s + FLY_R + 1.2,       // only score rounds that pose collision threat
-               escSeen: false, escVec: null, escTrue: null,   // threat-level escape bookkeeping (recorded on takeoff, prevents concurrency crosstalk/900ms window miss)
+               counted: miss < s + FLY_R + 1.2,       // Rounds
+               escSeen: false, escVec: null, escTrue: null,   // （，/900ms ）
                resolved: false, t0: performance.now() };
   threats.push(th);
   return th;
@@ -441,7 +441,7 @@ document.getElementById('bAuto').onclick = () => {
   let n = 0; const t = setInterval(() => { spawnThreat(['ball', 'frog', 'dragonfly'][n % 3]); if (++n >= 10) clearInterval(t); }, 1800);
 };
 
-/* ---------- Cue Computation (consistent with training) ---------- */
+/* ---------- （） ---------- */
 function computeCues(th, ag) {
   const rvec = th.pos.clone().sub(ag.mesh.position);
   const r = rvec.length() || 1e-6;
@@ -451,26 +451,26 @@ function computeCues(th, ag) {
   const vm = th.vel.length();
   const u = th.r * th.r * vm / (r * r + 1e-9);
   const wind = vm > 1e-9 ? th.vel.clone().multiplyScalar(u / vm) : new THREE.Vector3();
-  // v5 P5④: removed atan2 constant bias (original rhat.z+1e-9 always added); only fallback when near-singular (rhat.x/z both≈0, pure vertical)
+  // v5 P5④： atan2 （ rhat.z+1e-9 ）；（rhat.x/z ≈0，）
   const az = (Math.hypot(rhat.x, rhat.z) < 1e-9) ? Math.atan2(rhat.z + 1e-9, rhat.x) : Math.atan2(rhat.z, rhat.x);
   return { r, rhat, rdot, loom, wind, az };
 }
 
-/* ---------- Phase 1/2 Integration: Drone = DronePhysics (flight dynamics) + DroneAdapter (brain→motor) ----------
-   Fruit fly keeps current kinematics (flies like a fly, not a helicopter); pilot non-modifier-key override highest priority, adapter bypassed ---------- */
-let DRONE_PHYS_ON = true;                           // "⚙️ Flight Dynamics" toggle: ON=new physics, OFF=old kinematics (default ON)
+/* ---------- 1/2 ： = DronePhysics() + DroneAdapter(→) ----------
+   （）；Pilot， ---------- */
+let DRONE_PHYS_ON = true;                           // "⚙️ "：=，=（）
 document.getElementById('bPhys').onclick = () => {
   DRONE_PHYS_ON = !DRONE_PHYS_ON;
-  document.getElementById('bPhys').textContent = '⚙️ Flight Dynamics: ' + (DRONE_PHYS_ON ? 'ON' : 'OFF');
-  toast(DRONE_PHYS_ON ? 'Flight dynamics enabled: drone uses DronePhysics+DroneAdapter' : 'Flight dynamics disabled: all agents use old kinematics');
+  document.getElementById('bPhys').textContent = '⚙️ ：' + (DRONE_PHYS_ON ? '' : '');
+  toast(DRONE_PHYS_ON ? 'Flight Dynamics ON:  DronePhysics+DroneAdapter' : 'Flight Dynamics OFF: ');
 };
 function ensureDronePhys(a) {
   const want = a.kind === 'drone' && DRONE_PHYS_ON && a.bionic && !!window.DronePhysics && !!window.DroneAdapter;
   if (!want) { a.physOn = false; return false; }
   if (!a.phys) a.phys = new DronePhysics();
-  if (!a.adapter) a.adapter = new DroneAdapter({ rng: DroneAdapter.makeRng(1234 + agents.indexOf(a)) });   // inject rng for determinism
+  if (!a.adapter) a.adapter = new DroneAdapter({ rng: DroneAdapter.makeRng(1234 + agents.indexOf(a)) });   //  rng 
   if (!a.physOn) {
-    // sync from current world pose on toggle/swap/override frame (prevent jump); speed world units/ms → world units/s
+    // //：（）； /ms → /s
     const p = a.mesh.position, v = a.vel, q = a.mesh.quaternion;
     a.phys.pos.x = p.x; a.phys.pos.y = p.y; a.phys.pos.z = p.z;
     a.phys.vel.x = v.x * 1000; a.phys.vel.y = v.y * 1000; a.phys.vel.z = v.z * 1000;
@@ -481,44 +481,44 @@ function ensureDronePhys(a) {
   return true;
 }
 
-/* ---------- Phase 3: Battery cosmetic bar + Land/Takeoff (100→0 in 10min, auto-LAND when depleted; pilot can takeoff anytime) ---------- */
+/* ---------- 3： + Landing/Takeoff（100→0  10min， LAND；PilotTakeoff） ---------- */
 let batStart = performance.now(), autoLanded = false;
 document.getElementById('bLand').onclick = () => {
   let n = 0;
   for (const a of agents) if (a.adapter) { a.adapter.enterLand(); n++; }
-  toast(n ? '🛬 Landing command sent (executed by DroneAdapter LAND state)' : 'Landing requires drone body + flight dynamics enabled');
+  toast(n ? '🛬 Landing（ DroneAdapter  LAND ）' : 'LandingDrone Body + ');
 };
 document.getElementById('bTakeoff').onclick = () => {
   batStart = performance.now(); autoLanded = false;
   for (const a of agents) if (a.adapter) a.adapter.enterCruise();
-  toast('🛫 Takeoff: battery reset to 100%, auto-land cleared (pilot can override anytime)');
+  toast('🛫 Takeoff： 100%，auto-landing（Pilot）');
 };
 
-/* ---------- Control Authority: Manual / Bionic (pilot any input = immediate override) ---------- */
+/* ---------- ：Manual / Bionic（Pilot=） ---------- */
 document.getElementById('bMode').onclick = () => {
   if (!selAgent) return;
   selAgent.bionic = !selAgent.bionic;
   document.getElementById('bMode').textContent = selAgent.bionic ? '🤖 Bionic (click to switch manual)' : '🛫 Manual (click to switch bionic)';
-  toast(selAgent.bionic ? 'Bionic system online' : 'Manual mode: SNN does not participate in control, zero output');
+  toast(selAgent.bionic ? 'Bionic system online' : 'Manual mode：SNN ，');
 };
 addEventListener('keydown', e => {
   if (!selAgent) return;
   const k = e.key.toLowerCase();
-  if (['shift', 'control', 'alt', 'meta', 'altgraph'].includes(k)) return;  // pure modifier keys don't constitute control intent
+  if (['shift', 'control', 'alt', 'meta', 'altgraph'].includes(k)) return;  // 
   if (selAgent.bionic) {
-    // Safety baseline: pilot any key = immediate override, SNN output authority cut on the spot (drone pilot has priority)
+    // ：Pilot = ，SNN （Pilot）
     selAgent.bionic = false;
-    selAgent.escaped = false;   // also cut ongoing escape thrust, prevents residual frame when switching back to bionic
+    selAgent.escaped = false;   // ，Bionic
     document.getElementById('bMode').textContent = '🛫 Manual (click to switch bionic)';
-    toast('🛫 Pilot key = immediate override, SNN output authority cut');
+    toast('🛫 Pilot key = immediate override, SNN output cut');
   }
   selAgent.manualKeys[k] = true;
 });
 addEventListener('keyup', e => { if (selAgent) selAgent.manualKeys[e.key.toLowerCase()] = false; });
 
-/* ---------- Behavior: Wander + SNN Escape ---------- */
+/* ---------- ： + SNN  ---------- */
 function driveAgent(a, dtMs, now) {
-  if (a.dragging) {                                // dragging in progress: no movement, no decision (physics state synced with hand to prevent bounce)
+  if (a.dragging) {                                // ：、（，）
     if (a.phys) {
       const dp0 = a.mesh.position;
       a.phys.pos.x = dp0.x; a.phys.pos.y = dp0.y; a.phys.pos.z = dp0.z;
@@ -527,13 +527,13 @@ function driveAgent(a, dtMs, now) {
     return;
   }
   const w = WEATHER[weather];
-  // drone body + toggle on + bionic → DronePhysics+DroneAdapter; fruit fly/manual/toggle off → current kinematics (pilot override bypasses adapter)
+  // ++Bionic → DronePhysics+DroneAdapter；/Manual/ → （Pilot）
   const dronePhys = ensureDronePhys(a);
-  // global wind perturbation (gale pushes body to wobble) — old kinematics scope; flight dynamics path handled by its own drag term
+  // （Gale）——；
   if (!dronePhys) { a.vel.x += w.wind[0] * dtMs; a.vel.z += w.wind[2] * dtMs; }
 
   if (!a.bionic) {
-    // Manual piloting: WASD/arrow keys (pilot input is authoritative, SNN has no output)
+    // Manual：WASD/（Pilot，SNN ）
     const k = a.manualKeys;
     const fwd = (k['w'] || k['arrowup'] ? 1 : 0) - (k['s'] || k['arrowdown'] ? 1 : 0);
     const side = (k['d'] || k['arrowright'] ? 1 : 0) - (k['a'] || k['arrowleft'] ? 1 : 0);
@@ -542,7 +542,7 @@ function driveAgent(a, dtMs, now) {
       a.vel.z -= fwd * a.spec.accel * dtMs;
     }
   } else {
-    // Auto wander (leisurely patrol when no threats) — flight dynamics path handled by DroneAdapter CRUISE random walk
+    // （）—— DroneAdapter  CRUISE 
     if (!dronePhys) {
       a.wanderT -= dtMs;
       if (a.wanderT <= 0) {
@@ -553,15 +553,15 @@ function driveAgent(a, dtMs, now) {
       a.vel.z += (a.goalDir.z * 0.0004 - a.vel.z * 0.004) * dtMs;
     }
 
-    // SNN decision (≥40ms interval, ~25Hz) — Phase 3: brain always online (runs SNN every decision cycle with recent obstacle/threat input)
-    // Multiple concurrent threats: respond to nearest first (simplified in this world; stats still bookkeep per threat)
+    // SNN （≥40ms ， 25Hz）——3：（/ SNN）
+    // （；）
     let th = null, bestR = Infinity;
     for (const t of threats) {
       if (t.target !== a || t.resolved) continue;
       const rr = t.pos.distanceTo(a.mesh.position);
       if (rr < bestR) { bestR = rr; th = t; }
     }
-    // Phase 3 cruise obstacle avoidance: loom field samples nearest obstacle direction (including threats not aimed at this agent), only steer, no bookkeeping
+    // 3 Cruise：loom （），、
     let ob = null, bestOb = Infinity;
     for (const t of threats) {
       if (t.resolved) continue;
@@ -572,47 +572,47 @@ function driveAgent(a, dtMs, now) {
     if (cueT && now - a.lastDecision > 40) {
       a.lastDecision = now;
       const cues = computeCues(cueT, a);
-      // coordinate system mapping: network frame(0=az-plane x, 1=that plane z, 2=vertical y) → world(x,z,y), wind input must be sent as (x,z,y)
-      const rec = window.BrainPanel ? BrainPanel.beginRec() : null;   // brain panel bypass recording (null when closed, zero overhead in compute path)
+      // ：(0=azx, 1=z, 2=y) → (x,z,y)， (x,z,y) 
+      const rec = window.BrainPanel ? BrainPanel.beginRec() : null;   // （Close null，）
       const out = a.brain.simulate(cues.loom, [cues.wind.x, cues.wind.z, cues.wind.y], cues.az, rec);
       if (rec) BrainPanel.show(rec, out, cues);
       a.lastOut = out; a.lastCues = cues;
-      a.lat = out.triggered ? out.firstSpikeMs : null;   // refresh latency reading each decision (no spike→"—", prevents multi-threat crosstalk stale values)
+      a.lat = out.triggered ? out.firstSpikeMs : null;   // （→"—"，）
       if (out.triggered) {
         if (!a.escaped) {
-          // GF spike → escape maneuver (body execution differs: fruit fly burst fast, drone acceleration-limited)
-          // Output same-frame mapping: escapeDir(0,1,2) = (x,z,y) world components, must swap y/z before applying
+          // GF  → （：，）
+          // ：escapeDir(0,1,2) = (x,z,y) ， y/z 
           a.escapeVec = new THREE.Vector3(out.escapeDir[0], out.escapeDir[2], out.escapeDir[1]).normalize();
           a.escaped = true; a.escapeAt = now;
           a.lat = out.firstSpikeMs;
           banner('⚡ Escape!');
         }
         if (th && !th.escSeen) {
-          // Per-threat bookkeeping: recorded on takeoff (includes another threat triggered within 900ms maneuver window), unaffected by maneuver window
+          // ：（ 900ms ），
           th.escSeen = true;
-          th.escVec = new THREE.Vector3(out.escapeDir[0], out.escapeDir[2], out.escapeDir[1]).normalize();   // record this SNN's decision direction for "this threat" (prevents reuse of previous threat's maneuver vector)
-          th.escTrue = cues.rhat.clone().multiplyScalar(-1);   // "away" ground truth at takeoff moment (r̂ changes by settlement time)
+          th.escVec = new THREE.Vector3(out.escapeDir[0], out.escapeDir[2], out.escapeDir[1]).normalize();   //  SNN ""（）
+          th.escTrue = cues.rhat.clone().multiplyScalar(-1);   // ""（ r̂ ）
         }
       } else if (cues.loom > 0.35) {
-        // Phase 3 cruise obstacle avoidance: 0.35<loom<threshold (SNN not triggered) → yaw away from obstacle, only steer, no escape trigger
+        // 3 Cruise：0.35<loom<（SNN ）→ ，、
         const away = new THREE.Vector3(a.mesh.position.x - cueT.pos.x, 0, a.mesh.position.z - cueT.pos.z);
         if (away.lengthSq() > 1e-8) {
           away.normalize();
-          if (dronePhys) a.adapter.setYawTarget(Math.atan2(away.x, away.z));   // drone: change desired heading (yaw)
-          else a.goalDir.copy(away);                                           // fruit fly/old kinematics: wander direction turns away
+          if (dronePhys) a.adapter.setYawTarget(Math.atan2(away.x, away.z));   // ：（）
+          else a.goalDir.copy(away);                                           // /：
         }
       }
     }
     if (dronePhys) {
-      // ★ Adapter layer replacement point (replaces original lines 526-528 escape thrust): fruit fly brain output → DroneAdapter (state machine+PID+mixer) → DronePhysics (dynamics)
+      // ★（ 526-528 ）： → DroneAdapter(+PID+) → DronePhysics()
       const ph = a.phys, ee = ph.eulerAngles();
       const motors = a.adapter.update(cueT ? a.lastOut : null,
         { pos: ph.pos, vel: ph.vel, roll: ee.roll, pitch: ee.pitch, yaw: ee.yaw, groundY: 6 }, dtMs, false);
       ph.update(dtMs / 1000, motors);
-      const q = ph.quat; a.mesh.quaternion.set(q.x, q.y, q.z, q.w);          // attitude from dynamics quaternion
+      const q = ph.quat; a.mesh.quaternion.set(q.x, q.y, q.z, q.w);          // 
       const fp = ph.pos; a.mesh.position.set(fp.x, fp.y, fp.z);
-      a.vel.set(ph.vel.x * 0.001, ph.vel.y * 0.001, ph.vel.z * 0.001);       // world units/s → world units/ms
-      // boundary (same scope as old kinematics)
+      a.vel.set(ph.vel.x * 0.001, ph.vel.y * 0.001, ph.vel.z * 0.001);       // /s → /ms
+      // （）
       const bp = a.mesh.position;
       if (bp.y < 6) { bp.y = 6; if (ph.vel.y < 0) ph.vel.y = 0; }
       if (bp.y > 60) { bp.y = 60; if (ph.vel.y > 0) ph.vel.y = 0; }
@@ -626,7 +626,7 @@ function driveAgent(a, dtMs, now) {
     }
   }
   if (!dronePhys) {
-    // speed limit, damping, boundary
+    // 、、
     const sp = a.vel.length();
     if (sp > a.spec.vmax) a.vel.multiplyScalar(a.spec.vmax / sp);
     a.vel.multiplyScalar(a.spec.drag);
@@ -635,38 +635,38 @@ function driveAgent(a, dtMs, now) {
     if (p.y < (a.kind === 'fly' ? 3 : 6)) p.y = a.kind === 'fly' ? 3 : 6;
     if (p.y > 60) p.y = 60;
     const d = Math.hypot(p.x, p.z); if (d > 230) { p.x *= 230 / d; p.z *= 230 / d; }
-    // face velocity direction
+    // 
     if (sp > 1e-5) {
       const look = p.clone().add(a.vel.clone().normalize());
       a.mesh.lookAt(look);
     }
   }
-  // wings/rotors/joints animation (v5: wing flap around root + secondary twist, six-leg knee joint gait, dual-blade counter-rotation, gimbal micro-movement, indicator light blink)
+  // Wing//（v5：+、、、、）
   a.wingT += dtMs;
   if (a.kind === 'fly') {
     a.mesh.userData.wings.forEach((w, i) => {
-      w.rotation.z = Math.sin(a.wingT * (a.escaped ? 0.09 : 0.05) + i * Math.PI) * 0.9;    // wing flap (around wing root)
-      w.rotation.x = (i ? 1 : -1) * (0.18 + Math.sin(a.wingT * (a.escaped ? 0.045 : 0.025)) * 0.08);  // wing twist secondary motion
+      w.rotation.z = Math.sin(a.wingT * (a.escaped ? 0.09 : 0.05) + i * Math.PI) * 0.9;    // Wing beat (around root)
+      w.rotation.x = (i ? 1 : -1) * (0.18 + Math.sin(a.wingT * (a.escaped ? 0.045 : 0.025)) * 0.08);  // Wing
     });
-    (a.mesh.userData.legs || []).forEach(L => {          // six-leg joints: hip/knee phase gait
+    (a.mesh.userData.legs || []).forEach(L => {          // Six-leg joints: hip/knee phase gait
       L.hip.rotation.x = L.baseHip + Math.sin(a.wingT * 0.004 + L.phase) * 0.12;
       L.knee.rotation.x = L.baseKnee + Math.max(0, Math.sin(a.wingT * 0.004 + L.phase + 1)) * 0.18;
     });
   } else {
-    a.mesh.userData.rotors.forEach((r, i) => r.rotation.y = a.wingT * 0.55 * (i % 2 ? 1 : -1));   // counter-rotation
+    a.mesh.userData.rotors.forEach((r, i) => r.rotation.y = a.wingT * 0.55 * (i % 2 ? 1 : -1));   // Counter-rotation
     const gim = a.mesh.userData.gimbal;
     if (gim) {
       gim.rotation.y = Math.sin(a.wingT * 0.0008) * 0.4;
       if (gim.userData.pitch) gim.userData.pitch.rotation.x = 0.35 + Math.sin(a.wingT * 0.0011) * 0.15;
     }
-    (a.mesh.userData.leds || []).forEach((l, i) => l.visible = ((a.wingT * 0.002 + i * 0.6) % 2) < 1.4);  // indicator lights
+    (a.mesh.userData.leds || []).forEach((l, i) => l.visible = ((a.wingT * 0.002 + i * 0.6) % 2) < 1.4);  // 
   }
 }
 
-/* ---------- Threat Propagation & Resolution ---------- */
-const _co = new THREE.Vector3(), _r0 = new THREE.Vector3(), _r1 = new THREE.Vector3(), _sg = new THREE.Vector3();   // collision temp vectors
+/* ----------  ---------- */
+const _co = new THREE.Vector3(), _r0 = new THREE.Vector3(), _r1 = new THREE.Vector3(), _sg = new THREE.Vector3();   // 
 function driveThreats(dtMs, now) {
-  const toRespawn = [];                       // respawn delayed outside this loop, prevents teleport polluting distance checks for subsequent threats in same frame
+  const toRespawn = [];                       // Respawn deferred outside current loop，
   for (const th of threats) {
     if (th.resolved) continue;
     th.pos.addScaledVector(th.vel, dtMs);
@@ -676,46 +676,46 @@ function driveThreats(dtMs, now) {
     if (!ag || agents.indexOf(ag) < 0) { th.resolved = true; scene.remove(th.mesh); continue; }
 
     const cues = computeCues(th, ag);
-    // hit detection (v5 P3): combined sphere/capsule chain sweeps per-sphere by model real size —
-    //   segment-to-origin closest distance (including endpoints, quadratic closest point) < sphere radius+FLY_R; fixes "grazing past" false collision
-    //   true pre-frame position at frame start (v5 P5②): no more vel×clamped dtMs back-calculation (root cause of clamped frame sweep distortion)
+    // （v5 P3）：/——
+    //   （，）< +FLY_R；""
+    //    pre-frame （v5 P5②）： vel× dtMs （）
     const aPrev = ag.preFrame || ag.mesh.position;
     const pPrev = th.preFrame || th.pos;
     let closestDist = Infinity;
     for (const c of th.colliders) {
-      _co.copy(c.o).applyQuaternion(th.mesh.quaternion);          // local collision sphere offset → world (follows model tumble)
+      _co.copy(c.o).applyQuaternion(th.mesh.quaternion);          // Local collision sphere offset → （）
       _r0.copy(pPrev).add(_co).sub(aPrev);
       _r1.copy(th.pos).add(_co).sub(ag.mesh.position);
       _sg.copy(_r1).sub(_r0);
       const segLen2 = _sg.lengthSq();
       const tHit = segLen2 > 0 ? Math.max(0, Math.min(1, -_r0.dot(_sg) / segLen2)) : 0;
-      const surf = _r0.addScaledVector(_sg, tHit).length() - c.r;  // sweep surface distance (negative=penetration)
+      const surf = _r0.addScaledVector(_sg, tHit).length() - c.r;  // Swept surface distance（=）
       if (surf < closestDist) closestDist = surf;
     }
     if (closestDist < FLY_R || cues.r < th.r + FLY_R) {
       th.resolved = true;
       if (th.counted) {
         ag.stats.rounds++; ag.stats.hit++;
-        toast('💥 Hit! This life is over (instincts remain, can respawn)');
+        toast('💥 Hit —— This life is over (instinct survives, can respawn)');
         toRespawn.push(ag);
       } else if (th.escSeen) {
-        ag.stats.fa++;                     // non-scored threat: escape counted as false alarm (symmetric with "fly-away resolution" path)
+        ag.stats.fa++;                     // False Alarms（""）
       }
       scene.remove(th.mesh);
     } else if ((cues.rdot > 0 && cues.r > 60) || now - th.t0 > 9000) {
-      // threat moved away/timed out: resolve (only scored rounds stats; false alarm = threat posed no collision but triggered escape)
+      // /：（Rounds；False Alarms=）
       th.resolved = true;
       if (th.counted) {
         ag.stats.rounds++;
-        if (th.escSeen) {                  // per-threat bookkeeping: recorded on takeoff (unaffected by 900ms maneuver window)
+        if (th.escSeen) {                  // ：（ 900ms ）
           ag.stats.esc++;
-          const esc = th.escTrue || cues.rhat.clone().multiplyScalar(-1);   // "away" ground truth at takeoff moment (decision-time scope, comparable with REPORT/bBatch)
+          const esc = th.escTrue || cues.rhat.clone().multiplyScalar(-1);   // ""（， REPORT/bBatch ）
           const d = th.escVec ? th.escVec.clone().normalize().dot(esc) : 0;
           const ang = Math.acos(Math.max(-1, Math.min(1, d))) * 180 / Math.PI;
           ag.stats.angSum += ang; ag.stats.angN++;
         }
       } else if (th.escSeen) {
-        ag.stats.fa++;                     // false alarm: threat posed no collision but triggered escape
+        ag.stats.fa++;                     // False Alarms：
       }
       scene.remove(th.mesh);
     }
@@ -724,10 +724,10 @@ function driveThreats(dtMs, now) {
 }
 function respawn(a) {
   a.mesh.position.set(Math.random() * 40 - 20, 10, Math.random() * 40 - 20);
-  a.vel.set(0, 0, 0); a.escaped = false;   // respawn = factory reset (instinct weights unchanged)
+  a.vel.set(0, 0, 0); a.escaped = false;   //  = （）
 }
 
-/* ---------- Camera Follow Selected Agent (Third Person) ---------- */
+/* ---------- （） ---------- */
 const camOffset = new THREE.Vector3(0, 26, 46);
 function driveCamera() {
   if (!selAgent) return;
@@ -737,12 +737,12 @@ function driveCamera() {
 }
 addEventListener('wheel', e => {
   camOffset.multiplyScalar(1 + Math.sign(e.deltaY) * 0.05);
-  const L = camOffset.length();                     // zoom limit: prevent clipping / pulling too far
+  const L = camOffset.length();                     // ：/
   if (L < 8) camOffset.setLength(8);
   else if (L > 120) camOffset.setLength(120);
 });
 
-/* ---------- Drag Agent (dodge success stays in place; hit random respawn; can also manually drag to new position) ---------- */
+/* ---------- （；；Manual） ---------- */
 const ray = new THREE.Raycaster();
 const ndcV = new THREE.Vector2();
 let dragAgent = null;
@@ -762,7 +762,7 @@ renderer.domElement.addEventListener('mousedown', e => {
   dragAgent = agents.find(a => { let o = obj; while (o) { if (o === a.mesh) return true; o = o.parent; } return false; }) || null;
   if (!dragAgent) return;
   selectAgent(dragAgent);
-  dragPlane.constant = -dragAgent.mesh.position.y;   // drag on horizontal plane at agent's current height
+  dragPlane.constant = -dragAgent.mesh.position.y;   // 
   dragAgent.dragging = true;
   dragAgent.vel.set(0, 0, 0);
 });
@@ -770,7 +770,7 @@ addEventListener('mousemove', e => {
   if (!dragAgent) return;
   setNDC(e); ray.setFromCamera(ndcV, camera);
   if (ray.ray.intersectPlane(dragPlane, dragPt)) {
-    dragAgent.mesh.position.set(                     // during drag: move position only, no velocity (clamped to prevent dragging out of world)
+    dragAgent.mesh.position.set(                     // 、（）
       Math.max(-200, Math.min(200, dragPt.x)),
       dragAgent.mesh.position.y,
       Math.max(-200, Math.min(200, dragPt.z)));
@@ -783,7 +783,7 @@ addEventListener('mouseup', () => {
 /* ---------- HUD ---------- */
 function updateHUD() {
   const a = selAgent;
-  if (!a) {                                        // no agent: clear readings, prevent stale values
+  if (!a) {                                        // ：，
     for (const id of ['mBody', 'mMode', 'mLoom', 'mWind', 'mV', 'mGF', 'mLat', 'mRounds', 'mEsc', 'mHit', 'mFA', 'mRate', 'mAng', 'mFsm', 'mRoll', 'mPitch']) document.getElementById(id).textContent = '—';
     for (let i = 1; i <= 4; i++) document.getElementById('mM' + i).style.width = '0';
     return;
@@ -792,12 +792,12 @@ function updateHUD() {
   const mt = document.getElementById('mMode');
   mt.textContent = a.bionic ? 'Bionic' : 'Manual';
   mt.className = 'tag ' + (a.bionic ? 'ok' : 'dim');
-  const active = threats.some(t => t.target === a && !t.resolved);          // only "deciding" when threats are active
-  const o = (a.bionic && active) ? a.lastOut : null, c = (a.bionic && active) ? a.lastCues : null;  // manual/no-threats don't show stale readings
+  const active = threats.some(t => t.target === a && !t.resolved);          // ""
+  const o = (a.bionic && active) ? a.lastOut : null, c = (a.bionic && active) ? a.lastCues : null;  // Manual/
   document.getElementById('mLoom').textContent = c ? c.loom.toFixed(2) : '—';
   document.getElementById('mWind').textContent = c ? Math.hypot(c.wind.x, c.wind.y, c.wind.z).toFixed(4) : '—';
   document.getElementById('mV').textContent = o ? o.vHubMax.toFixed(2) : '—';
-  document.getElementById('mGF').textContent = o ? (o.triggered ? 'Firing!' : 'Resting') : 'Not Running';
+  document.getElementById('mGF').textContent = o ? (o.triggered ? 'Firing!' : 'Resting') : 'Not running';
   document.getElementById('mGF').className = o && o.triggered ? 'ok' : 'dim';
   document.getElementById('mLat').textContent = (a.bionic && active && a.lat) ? a.lat + ' ms' : '—';
   const s = a.stats;
@@ -807,13 +807,13 @@ function updateHUD() {
   document.getElementById('mFA').textContent = s.fa;
   document.getElementById('mRate').textContent = s.rounds ? (s.esc / s.rounds * 100).toFixed(1) + '%' : '—';
   document.getElementById('mAng').textContent = s.angN ? (s.angSum / s.angN).toFixed(1) + '°' : '—';
-  // Flight telemetry (Phase 1/2): state machine text + 4 motor bars + attitude angles roll/pitch (displays per scope when not drone/physics off/pilot override)
+  // （1/2）： +  4  +  roll/pitch（//Manual）
   const dp = (a.kind === 'drone' && a.adapter && a.physOn) ? a : null;
   document.getElementById('mFsm').textContent = dp ? (!a.bionic ? 'Pilot' : a.adapter.lastStateCN)
     : (a.kind === 'drone' && !a.bionic ? 'Pilot' : '—');
   const mo = dp ? a.adapter.lastMotors : null;
   for (let i = 0; i < 4; i++) {
-    const norm = mo ? Math.min(1.5, Math.max(0, mo[i] / DronePhysics.HOVER)) : 0;   // normalized scope (hover=1.0, burst=1.5)
+    const norm = mo ? Math.min(1.5, Math.max(0, mo[i] / DronePhysics.HOVER)) : 0;   // Normalized（=1.0，=1.5）
     document.getElementById('mM' + (i + 1)).style.width = (norm / 1.5 * 100).toFixed(0) + '%';
   }
   if (dp) {
@@ -836,9 +836,9 @@ function banner(msg) {
   setTimeout(() => b.style.opacity = 0, 700);
 }
 
-/* ---------- Batch Statistics (scope consistent with train_snn.py evaluation) ----------
-   Note: this stats directly uses training-frame self-built samples (rhat=[cos el cos az, cos el sin az, sin el], wind as (x,y,z)),
-   different from the 3D scene (x,z,y) world frame mapping convention, but each self-consistent. ---------- */
+/* ---------- （ train_snn.py ） ----------
+   ：（rhat=[cos el cos az, cos el sin az, sin el]、 (x,y,z)），
+    3D  (x,z,y) ，。 ---------- */
 document.getElementById('bBatch').onclick = () => {
   const out = document.getElementById('batchOut'); out.textContent = 'Running stats...';
   setTimeout(() => {
@@ -852,7 +852,7 @@ document.getElementById('bBatch').onclick = () => {
       const rhat = new THREE.Vector3(Math.cos(el) * Math.cos(az), Math.cos(el) * Math.sin(az), Math.sin(el));
       const miss = Math.random() * 8;
       const tan = new THREE.Vector3(-rhat.y, rhat.x, 0).normalize();
-      const v = rhat.clone().multiplyScalar(-Math.sqrt(Math.max(0, 1 - (miss / (d + 1e-9)) ** 2)))   // P5③: miss/(d+1e-9)
+      const v = rhat.clone().multiplyScalar(-Math.sqrt(Math.max(0, 1 - (miss / (d + 1e-9)) ** 2)))   // P5③：miss/(d+1e-9)
                     .add(tan.multiplyScalar(miss / (d + 1e-9))).normalize().multiplyScalar(speed / 10);
       const rdot = v.dot(rhat);
       const loom = Math.max(0, -2 * s * rdot / (d * d + s * s)) * 1000 * WEATHER[weather].visGain;
@@ -873,24 +873,24 @@ document.getElementById('bBatch').onclick = () => {
         if (pred === 1 && ang < 30) hits++;
       }
     }
-    out.innerHTML = `【${WEATHER[weather].name}】100 scenarios: Trigger <b>${(trigOK / N * 100).toFixed(1)}%</b>　` +
-      `Escape <b>${(hits / Math.max(1, nPos) * 100).toFixed(1)}%</b>　` +
-      `Direction <b>${nPos ? (angSum / nPos).toFixed(1) + '°' : '—'}</b>　` +
-      `Latency <b>${latN ? (latSum / latN).toFixed(1) + ' ms' : '—'}</b>`;   // scope=train: mean latency of firing positive samples
+    out.innerHTML = `【${WEATHER[weather].name}】100 Scene:  <b>${(trigOK / N * 100).toFixed(1)}%</b>　` +
+      ` <b>${(hits / Math.max(1, nPos) * 100).toFixed(1)}%</b>　` +
+      ` <b>${nPos ? (angSum / nPos).toFixed(1) + '°' : '—'}</b>　` +
+      ` <b>${latN ? (latSum / latN).toFixed(1) + ' ms' : '—'}</b>`;   // =train：
   }, 30);
 };
 document.getElementById('bReset').onclick = () => {
   agents.forEach(a => a.stats = { rounds: 0, esc: 0, hit: 0, fa: 0, angSum: 0, angN: 0 });
-  toast('Stats cleared');
+  toast('Stats reset');
 };
 
-/* ---------- Main Loop ---------- */
+/* ----------  ---------- */
 let last = performance.now();
 function animate(now) {
   requestAnimationFrame(animate);
   const dtMs = Math.min(50, now - last); last = now;
 
-  // v5 P5②: cache true pre-frame position at frame start (for collision sweep; vel×dt back-calculation distorts under clamped/variable frames)
+  // v5 P5②： pre-frame （；/ vel×dt ）
   for (const a of agents) a.preFrame = a.mesh.position.clone();
   for (const t of threats) t.preFrame = t.pos.clone();
 
@@ -898,25 +898,25 @@ function animate(now) {
   driveThreats(dtMs, now);
   driveCamera();
 
-  // Environment animation
+  // 
   if (grassUniform.uTime) {
     grassUniform.uTime.value = now * 0.001;
-    grassUniform.uWind.value = WEATHER[weather].sway;  // v5: grass sway amplitude by scene (meadow gentle / storm wild / gale gusting)
+    grassUniform.uWind.value = WEATHER[weather].sway;  // v5：（/Storm/Gale）
   }
   clouds.forEach((c, i) => { c.position.x += (0.002 + (weather === 'storm' ? 0.012 : 0)) * dtMs; if (c.position.x > 500) c.position.x = -500; });
-  if (window.FX) FX.update(now, dtMs, weather);        // v5 four-scene particle systems (cloud shadows/fireflies/diagonal rain wind streaks/airflow)
+  if (window.FX) FX.update(now, dtMs, weather);        // v5 （///）
   const pp = pollen.geometry.attributes.position;
   for (let i = 0; i < PCOUNT; i++) {
     pp.array[i * 3 + 1] += Math.sin(now * 0.001 + i) * 0.004;
   }
   pp.needsUpdate = true;
 
-  // Phase 3: battery cosmetic bar progress (100→0 in 10min, auto-LAND at 0)
+  // 3：（100→0  10min， 0  LAND）
   const bat = Math.max(0, 100 - (now - batStart) / 600000 * 100);
   if (bat <= 0 && !autoLanded) {
     autoLanded = true;
     for (const a of agents) if (a.adapter) a.adapter.enterLand();
-    toast('\uD83D\uDD0B Battery depleted \u2192 auto-land (press \u201C\uD83D\uDE81 Takeoff\u201D to resume anytime)');
+    toast('🔋 Battery depleted → auto-landing（“🛫 Takeoff”Takeoff）');
   }
   document.getElementById('mBat').style.width = bat + '%';
   document.getElementById('mBatV').textContent = bat.toFixed(0) + '%';
@@ -925,10 +925,10 @@ function animate(now) {
   renderer.render(scene, camera);
 }
 
-/* ---------- Startup ---------- */
-FX.init(scene); FX.setScene('meadow');                  // v5 scene FX system
+/* ----------  ---------- */
+FX.init(scene); FX.setScene('meadow');                  // v5 
 addAgent('fly', 0, 0);
-toast('Welcome to the micro world: God Console is on the right');
+toast('：');
 requestAnimationFrame(animate);
 </script>
 </body>
