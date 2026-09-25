@@ -1,23 +1,23 @@
 # -*- coding: utf-8 -*-
 """
-train_snn.py — 用 FlyWire 导出的稀疏连接矩阵训练「视-风双模态逃逸」LIF 脉冲神经网络
-====================================================================================
-客观说明（避免过度承诺）：
-  * 连接组来自单只雌性成蝇全脑（FlyWire/FAFB），突触数只是解剖连接强度的代理，不是生理权重；
-  * 训练数据是按物理公式程序化合成的"威胁线索 -> 逃逸指令"映射（视觉膨胀率 dθ/dt + 触角风压），
-    不是电生理实测数据；传感器编码参数（最大放电率 200Hz、半饱和常数等）是文献量级的工程取值。
-    因此本实验证明的是"以真实连接拓扑为约束的 SNN 能否完成该控制任务"，以及三种输入条件
-    （纯视觉/纯风觉/融合）在同一任务上的定量差异，而不是对生物体行为的定量预测。
-  * 拓扑 mask 固定不变（生物连接只允许调权重，不允许任意重连）。
+train_snn.py — Train a "visual-wind bimodal escape" LIF spiking neural network using sparse connectivity matrices exported from FlyWire
+============================================================================================================================================
+Objective notes (to avoid overpromising):
+  * Connectome comes from a single female adult whole brain (FlyWire/FAFB); synapse counts are only proxies for anatomical connection strengths, not physiological weights;
+  * Training data are "threat cue -> escape command" mappings synthesized programmatically from physics formulas (visual looming rate dθ/dt + antenna wind pressure),
+    not electrophysiological measurements; sensor encoding parameters (max firing rate 200Hz, half-saturation constant, etc.) are engineering values at literature scales.
+    Therefore this experiment demonstrates whether an SNN constrained by real connection topology can complete this control task, and the quantitative differences
+    among three input conditions (pure vision / pure wind / fusion) on the same task, rather than making quantitative predictions about organism behavior.
+  * The topology mask is fixed (biological connections only allow weight tuning, not arbitrary rewiring).
 
-模型（每毫秒一步，共 T=12 ms）：
-  v[t] = beta * v[t-1] + I_rec[t] + I_in[t] - Vth * s[t-1]      (LIF, 软复位)
-  s[t] = H( v[t] - Vth )                                        (代理梯度: fast-sigmoid)
-  I_rec[t] = W_e ⊗ s[t-1]   (消息传递: index_add，等价稀疏矩阵乘，CPU 上高效)
-  输出：触发 logit = Linear(GF 膜电位) ; 逃逸方向 = Linear(输出层 DN 膜电位) -> R^3
+Model (one step per millisecond, total T=12 ms):
+  v[t] = beta * v[t-1] + I_rec[t] + I_in[t] - Vth * s[t-1]      (LIF, soft reset)
+  s[t] = H( v[t] - Vth )                                        (surrogate gradient: fast-sigmoid)
+  I_rec[t] = W_e ⊗ s[t-1]   (message passing: index_add, equivalent to sparse matrix multiply, efficient on CPU)
+  Output: trigger logit = Linear(GF membrane potential) ; escape direction = Linear(output layer DN membrane potential) -> R^3
 
-损失： 0.5*BCE(触发) + 0.5*方向余弦损失 + 2e-3*平均放电次数*T(能量代价) + 0.6*GF放电BCE(pos_weight=2.5)
-       （完整损失式以 REPORT §1.6 与本文件 loss 计算处为准）
+Loss: 0.5*BCE(trigger) + 0.5*direction cosine loss + 2e-3*mean spike count*T(energy cost) + 0.6*GF spike BCE(pos_weight=2.5)
+      (Full loss formula refers to REPORT §1.6 and the loss computation section in this file)
 """
 import os
 import json
@@ -34,7 +34,7 @@ os.environ.setdefault('PYTHONPATH', os.path.join(BASE, 'pylibs'))
 import torch
 import torch.nn as nn
 
-try:  # snntorch 的代理梯度；若未安装则用等价的自实现 fast-sigmoid
+try:  # snntorch surrogate gradient; if not installed, use equivalent self-implemented fast-sigmoid
     from snntorch import surrogate as _surr
     spike_grad = _surr.fast_sigmoid()
     USING = 'snntorch surrogate.fast_sigmoid'
@@ -43,7 +43,7 @@ except Exception:
         @staticmethod
         def forward(ctx, x):
             ctx.save_for_backward(x)
-            return (x > 0).float()   # 边界 >0 与 snntorch FastSigmoid 一致
+            return (x > 0).float()   # boundary >0 consistent with snntorch FastSigmoid
 
         @staticmethod
         def backward(ctx, grad):
@@ -60,20 +60,20 @@ random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 
-# ---------------- 超参数 ----------------
+# ---------------- Hyperparameters ----------------
 DT_MS = 1.0
-T_STEPS = 12          # 仿真窗口 12 ms（GF 逃逸反应潜伏期量级）
-BETA = 0.85           # 膜电位衰减
-VTH = 1.0             # 阈值
+T_STEPS = 12          # Simulation window 12 ms (GF escape response latency scale)
+BETA = 0.85           # Membrane potential decay
+VTH = 1.0             # Threshold
 BATCH = 64
 EPOCHS = 25
 LR = 2e-3
 N_TRAIN = 5000
 N_VAL = 1200
-RATE_MAX_HZ = 200.0   # 输入编码最大放电率
+RATE_MAX_HZ = 200.0   # Max firing rate for input encoding
 BASE_RATE_HZ = 5.0
-TAU_TTC_MS = 50.0     # 触发判据：碰撞时间 < 50 ms
-R_TRIGGER_CM = 25.0   # 且距离 < 25 cm
+TAU_TTC_MS = 50.0     # Trigger criterion: time-to-collision < 50 ms
+R_TRIGGER_CM = 25.0   # and distance < 25 cm
 
 
 def load_graph():
@@ -83,26 +83,26 @@ def load_graph():
     src = np.array([e['src'] for e in g['edges']], dtype=np.int64)
     dst = np.array([e['dst'] for e in g['edges']], dtype=np.int64)
     w = np.array([e['weight'] for e in g['edges']], dtype=np.float32)
-    # 按突触后神经元的总入强度归一化，使初始动力学稳定
+    # Normalize by total incoming strength of postsynaptic neurons to stabilize initial dynamics
     abs_sum = np.zeros(n, dtype=np.float32)
     np.add.at(abs_sum, dst, np.abs(w))
     w = w / (abs_sum[dst] + 1e-6) * 1.2
     return g, n, src, dst, w
 
 
-# ---------------- 合成数据集：物理公式生成"威胁状态 -> 线索 -> 标签" ----------------
+# ---------------- Synthetic dataset: physics formula generates "threat state -> cues -> labels" ----------------
 def sample_threat(rng):
-    """返回某一时刻的威胁几何状态（单位 cm, cm/ms -> 换算为 m/s 展示）"""
-    d0 = rng.uniform(3.0, 35.0)                 # 当前距离 cm
-    az = rng.uniform(-math.pi, math.pi)         # 相对果蝇朝向的方位角
+    """Return the threat geometry state at a given moment (units cm, cm/ms -> converted to m/s for display)"""
+    d0 = rng.uniform(3.0, 35.0)                 # Current distance cm
+    az = rng.uniform(-math.pi, math.pi)         # Azimuth angle relative to fly orientation
     el = rng.uniform(-0.6, 0.6)
     speed = rng.uniform(0.3, 12.0)              # m/s
-    miss = rng.uniform(0.0, 8.0)                # 脱靶量 cm
-    s_size = rng.uniform(0.3, 3.0)              # 威胁物半径 cm
-    # 视线方向（威胁相对果蝇的位置单位向量）
+    miss = rng.uniform(0.0, 8.0)                # Miss distance cm
+    s_size = rng.uniform(0.3, 3.0)              # Threat object radius cm
+    # Line of sight direction (unit vector of threat position relative to fly)
     rhat = np.array([math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), math.sin(el)])
     rvec = rhat * d0
-    # 速度方向：瞄准果蝇附近（miss 造成切向分量）
+    # Velocity direction: aimed near the fly (miss creates tangential component)
     to_fly = -rhat
     tangent = np.array([-rhat[1], rhat[0], 0.0])
     tn = tangent / (np.linalg.norm(tangent) + 1e-9)
@@ -113,42 +113,42 @@ def sample_threat(rng):
 
 
 def cues_and_labels(st):
-    """由物理公式计算两类线索与监督标签。
-    视觉膨胀率：theta = 2*atan(s/r)  ->  dtheta/dt = -2 s r' / (r^2 + s^2)   (rad/s)
-    风压：球体势流近似 u = C s^2 v / r^2，方向沿威胁速度方向                    (任意单位, 归一化后用)
+    """Compute two types of cues and supervision labels from physics formulas.
+    Visual looming rate: theta = 2*atan(s/r)  ->  dtheta/dt = -2 s r' / (r^2 + s^2)   (rad/s)
+    Wind pressure: sphere potential flow approximation u = C s^2 v / r^2, direction along threat velocity direction   (arbitrary units, used after normalization)
     """
     r = st['d']
     s = st['s']
-    rdot = float(np.dot(st['v'], st['rhat']))       # cm/ms，接近时为负
+    rdot = float(np.dot(st['v'], st['rhat']))       # cm/ms, negative when approaching
     looming = max(0.0, -2.0 * s * rdot / (r ** 2 + s ** 2)) * 1000.0   # rad/s
-    u = (s ** 2) * np.linalg.norm(st['v']) / (r ** 2 + 1e-9)           # cm/ms 任意单位
+    u = (s ** 2) * np.linalg.norm(st['v']) / (r ** 2 + 1e-9)           # cm/ms arbitrary units
     wind_vec = u * (st['v'] / (np.linalg.norm(st['v']) + 1e-9))
 
     ttc_ms = 1e9 if rdot >= 0 else r / (-rdot) / 1.0  # r(cm)/|rdot|(cm/ms) = ms
     trigger = 1.0 if (rdot < 0 and ttc_ms < TAU_TTC_MS and r < R_TRIGGER_CM) else 0.0
-    esc_dir = -st['rhat'] / (np.linalg.norm(st['rhat']) + 1e-9)   # 逃逸方向 = 背离威胁（威胁在 +r̂ 方向）
+    esc_dir = -st['rhat'] / (np.linalg.norm(st['rhat']) + 1e-9)   # Escape direction = away from threat (threat is in +rhat direction)
     return looming, wind_vec, trigger, esc_dir, ttc_ms
 
 
 def encode_spikes(rng, looming, wind_vec, threat_az, pd_pref, wind_pref, n_steps):
-    """泊松发放率编码 -> [T, N_in] 0/1 脉冲
-    LPLC2 群体：按偏好方位角编码"威胁方位角"（方位信息 -> 群体码）
-    JO   群体：按敏感轴编码风矢量方向（风的方向本身携带威胁方向信息）
+    """Poisson firing rate encoding -> [T, N_in] 0/1 spikes
+    LPLC2 population: encodes "threat azimuth" by preferred azimuth (azimuth information -> population code)
+    JO   population: encodes wind vector direction by sensitive axis (wind direction itself carries threat direction information)
     """
     n_vis = pd_pref.shape[0]
     n_in = n_vis + wind_pref.shape[0]
-    loom_n = min(1.0, looming / (looming + 2.0))          # 饱和归一
+    loom_n = min(1.0, looming / (looming + 2.0))          # Saturated normalization
     wind_mag = np.linalg.norm(wind_vec)
-    wind_n = min(1.0, wind_mag / (wind_mag + 0.012))   # Johnston's 器为高灵敏机械感受器（半饱和常数取小）
+    wind_n = min(1.0, wind_mag / (wind_mag + 0.012))   # Johnston's organ is a high-sensitivity mechanoreceptor (half-saturation constant set small)
 
     rates = np.full(n_in, BASE_RATE_HZ, dtype=np.float32)
 
-    # 视觉通道（索引 0 .. n_vis-1）：偏好方位与威胁方位匹配度整流
+    # Visual channel (indices 0 .. n_vis-1): rectified match between preferred azimuth and threat azimuth
     cos_v = np.cos(pd_pref[:, 0] - threat_az)
     vis_drive = loom_n * np.clip(cos_v, 0.0, None) * RATE_MAX_HZ * 0.8
     rates[:n_vis] += vis_drive
 
-    # 风觉通道：风矢量在敏感轴上的投影整流
+    # Wind channel: rectified projection of wind vector onto sensitive axis
     wdir = wind_vec / (wind_mag + 1e-9)
     proj = wind_pref @ wdir
     wind_drive = wind_n * np.clip(proj, 0.0, None) * RATE_MAX_HZ * 0.8
@@ -171,7 +171,7 @@ def build_dataset(n, seed):
 
 
 class EscapeSNN(nn.Module):
-    """以 FlyWire 稀疏拓扑为固定 mask 的 LIF 递归网络；仅训练边权与两个读出头。"""
+    """LIF recurrent network with fixed FlyWire sparse topology as mask; only edge weights and two readout heads are trained."""
 
     def __init__(self, n, src, dst, w0, in_vision, in_wind, hub_idx, out_idx):
         super().__init__()
@@ -194,7 +194,7 @@ class EscapeSNN(nn.Module):
 
     def forward(self, spikes):
         """spikes: [T, B, N_in] -> trig_logit [B], dir_pred [B,3], rate [], v_hub_max [B],
-        first_step [B]（GF 首次放电步，未放电为 T）, hub_spk [B]（GF 放电总数）"""
+        first_step [B] (GF first spike step, T if no spike), hub_spk [B] (GF total spike count)"""
         T, B, _ = spikes.shape
         device = spikes.device
         v = torch.zeros(self.n, B, device=device)
@@ -210,7 +210,7 @@ class EscapeSNN(nn.Module):
         for t in range(T):
             msg = (self.w * self.w_mask)[:, None] * s[self.srcb]         # [E, B]
             cur = torch.zeros(self.n, B, device=device)
-            cur = cur.index_add(0, self.dstb, msg)                       # 稀疏递归电流
+            cur = cur.index_add(0, self.dstb, msg)                       # Sparse recurrent current
 
             xin = spikes[t] * self.in_gain[None, :]                      # [B, N_in]
             cur[self.in_vision] += xin[:, : self.in_vision.numel()].T
@@ -224,7 +224,7 @@ class EscapeSNN(nn.Module):
 
             hv = v[self.hub_idx].T                       # [B, n_hub]
             v_hub_max = torch.maximum(v_hub_max, hv.max(dim=1).values)
-            hs = s[self.hub_idx].T.sum(dim=1) > 0        # 本步 GF 是否放电
+            hs = s[self.hub_idx].T.sum(dim=1) > 0        # Whether GF fires this step
             first_step = torch.where(hs & ~fired_any,
                                      torch.full_like(first_step, float(t + 1)), first_step)
             fired_any = fired_any | hs
@@ -238,8 +238,8 @@ class EscapeSNN(nn.Module):
 def make_pref(n_vis, n_wind, seed):
     rng = np.random.default_rng(seed)
     pd_pref = np.zeros((n_vis, 2), dtype=np.float32)
-    pd_pref[:, 0] = np.linspace(-math.pi, math.pi, n_vis, endpoint=False)  # 偏好方位
-    pd_pref[:, 1] = rng.uniform(0.5, 1.0, n_vis)                            # 增益异质性（保留参数：当前未接入前向，维持两端 RNG 顺序一致，勿删）
+    pd_pref[:, 0] = np.linspace(-math.pi, math.pi, n_vis, endpoint=False)  # Preferred azimuth
+    pd_pref[:, 1] = rng.uniform(0.5, 1.0, n_vis)                            # Gain heterogeneity (retained parameter: currently not connected to forward pass, keeps both ends of RNG order consistent, do not delete)
     wind_pref = rng.normal(size=(n_wind, 3)).astype(np.float32)
     wind_pref /= np.linalg.norm(wind_pref, axis=1, keepdims=True)
     return pd_pref, wind_pref
@@ -302,8 +302,8 @@ def main():
     hub = g['hub_gf_indices']
     out = g['output_indices']
     n_vis, n_wind = len(in_v), len(in_w)
-    print(f'图：{n} 节点 / {len(src)} 边 | 视觉入 {n_vis} | 风觉入 {n_wind} | GF {len(hub)} | 输出 {len(out)}')
-    print(f'代理梯度: {USING}')
+    print(f'Graph: {n} nodes / {len(src)} edges | Vision input {n_vis} | Wind input {n_wind} | GF {len(hub)} | Output {len(out)}')
+    print(f'Surrogate gradient: {USING}')
 
     pd_pref, wind_pref = make_pref(n_vis, n_wind, SEED)
     train_samples, _ = build_dataset(N_TRAIN, SEED + 1)
@@ -342,8 +342,8 @@ def main():
             dn = dir_pred / (dir_pred.norm(dim=1, keepdim=True) + 1e-8)
             cos_loss = (1.0 - (dn * y_esc).sum(dim=1))
             dir_loss = (cos_loss * y_trig).sum() / (y_trig.sum() + 1e-6)
-            # 直接对"GF 是否放电"这一机制化触发判据做监督（v_hub_max 越过 VTH 即放电）
-            # pos_weight=2.5：错失威胁的代价 > 误报（生物逃逸的不对称代价），提高对威胁的敏感度
+            # Directly supervise the mechanistic trigger criterion of "whether GF fires" (fires when v_hub_max crosses VTH)
+            # pos_weight=2.5: cost of missing threat > false positive (asymmetric cost of biological escape), increases sensitivity to threats
             gf_loss = nn.functional.binary_cross_entropy_with_logits(
                 (v_hub_max - VTH) * 4.0, y_trig,
                 pos_weight=torch.tensor(2.5, device=device))
@@ -360,46 +360,46 @@ def main():
         print(f'epoch {ep:2d}/{EPOCHS}  loss={tot / len(train_samples):.4f}  '
               f'lr={scheduler.get_last_lr()[0]:.5f}  ({time.time() - t0:.0f}s)')
 
-        # 每 5 轮在验证集子集上快速评估，保存表现最好的权重（防止练过头）
+        # Quick evaluation every 5 epochs on a validation subset, save best weights (prevent overfitting)
         if ep % 5 == 0 or ep == EPOCHS:
             r = run_eval(model, val_samples[:400], pd_pref, wind_pref, device, mode='fusion')
             score = r['escape_success_rate'] + 0.25 * r['trigger_acc_gf_spike']
-            print(f'         [校验] GF触发={r["trigger_acc_gf_spike"]:.3f} '
-                  f'成功率={r["escape_success_rate"]:.3f} 方向误差={r["dir_mae_deg"]:.1f}°  score={score:.3f}')
+            print(f'         [Val] GF_trigger={r["trigger_acc_gf_spike"]:.3f} '
+                  f'success_rate={r["escape_success_rate"]:.3f} direction_error={r["dir_mae_deg"]:.1f}°  score={score:.3f}')
             if score > best_score:
                 best_score = score
                 best_state = copy.deepcopy(model.state_dict())
 
     if best_state is not None:
         model.load_state_dict(best_state)
-        print(f'\n已恢复最优权重（score={best_score:.3f}）')
+        print(f'\nRestored best weights (score={best_score:.3f})')
 
-    print('\n===== 对照评估（同一验证集） =====')
+    print('\n===== Comparative evaluation (same validation set) =====')
     results = {}
     for mode in ('fusion', 'vision_only', 'wind_only'):
         results[mode] = run_eval(model, val_samples, pd_pref, wind_pref, device, mode=mode)
 
-    # 多模态预激活（priming）：中等强度线索下的 GF 首次放电潜伏期
+    # Multimodal pre-activation (priming): GF first spike latency under moderate-strength cues
     priming = priming_test(model, pd_pref, wind_pref, device)
 
     fmt = '{:<12}{:>16}{:>16}{:>14}{:>14}{:>14}'.format(
-        '组别', '触发准确率(GF)', '触发准确率(头)', '避障成功率', '方向误差(°)', 'GF潜伏期(ms)')
+        'Group', 'Trigger Acc(GF)', 'Trigger Acc(Head)', 'Avoidance SR', 'Dir Error(°)', 'GF Latency(ms)')
     print(fmt)
     for mode, r in results.items():
         print('{:<12}{:>16.3f}{:>16.3f}{:>14.3f}{:>14.1f}{:>14.2f}'.format(
             mode, r['trigger_acc_gf_spike'], r['trigger_acc_head'],
             r['escape_success_rate'], r['dir_mae_deg'], r['gf_first_spike_ms']))
-    print('\n弱线索预激活(priming)测试 —— GF 放电比例与首次放电潜伏期：')
+    print('\nWeak-cue priming test — GF firing ratio and first spike latency:')
     for tag, r in priming.items():
         print('  {:<14} fire_rate={:.2f}  first_spike={:.2f} ms'.format(
             tag, r['fire_rate'], r['first_spike_ms']))
 
     export_model(model, results, priming, hist)
-    print('\n导出完成: snn_trained.json / metrics.json')
+    print('\nExport complete: snn_trained.json / metrics.json')
 
 
 def priming_test(model, pd_pref, wind_pref, device, repeats=60):
-    """中等强度的视觉/风觉线索单独或叠加时，统计 GF 是否放电与首次放电潜伏期。"""
+    """Under moderate-strength visual/wind cues alone or combined, record whether GF fires and first spike latency."""
     rng = np.random.default_rng(4242)
     n_vis = pd_pref.shape[0]
     out = {}
@@ -428,8 +428,8 @@ def export_model(model, results, priming, hist):
     payload = {
         'meta': {
             'dt_ms': DT_MS, 't_steps': T_STEPS, 'beta': BETA, 'threshold': VTH,
-            'weight_init': 'W0 = sign(nt)*log1p(syn_count) / per-post |W| sum * 1.2（FlyWire 拓扑 mask 固定）',
-            'note': '权重为合成任务上微调结果；拓扑与极性来自 FlyWire，非生理实测权重',
+            'weight_init': 'W0 = sign(nt)*log1p(syn_count) / per-post |W| sum * 1.2 (FlyWire topology mask fixed)',
+            'note': 'Weights are fine-tuned on the synthetic task; topology and polarity come from FlyWire, not physiological measurements',
         },
         'num_nodes': int(model.n),
         'input_vision_indices': model.in_vision.cpu().tolist(),
@@ -450,7 +450,7 @@ def export_model(model, results, priming, hist):
     with open(os.path.join(BASE, 'snn_trained.json'), 'w', encoding='utf-8') as f:
         json.dump(payload, f)
 
-    def _nan_to_none(o):  # NaN -> null：metrics.json 保持严格 JSON 合法（可被 Node require）
+    def _nan_to_none(o):  # NaN -> null: keep metrics.json strictly JSON-valid (can be required by Node)
         if isinstance(o, float) and o != o:
             return None
         if isinstance(o, dict):
@@ -472,7 +472,7 @@ def export_model(model, results, priming, hist):
         plt.tight_layout()
         plt.savefig(os.path.join(BASE, 'training_curve.png'), dpi=120)
     except Exception as e:
-        print('(绘图跳过:', e, ')')
+        print('(Plotting skipped:', e, ')')
 
 
 if __name__ == '__main__':

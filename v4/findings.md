@@ -1,41 +1,40 @@
-# findings —— v4 阶段 A
+# Findings — v4 Phase A
 
-## 环境/基线事实（已核实）
-- 图：1871 节点 / 45524 边；视觉入 210（LPLC2）、风觉入 325（JO-B/JO-C）、GF 2、输出 169。
-- CPU：16 逻辑核；内存 16GB；torch 2.14.0+cpu（pylibs）。
-- v3 基线（REPORT.md / metrics.json，验证集 1200 条，训练种子 20240521）：
-  - 融合 0.799 触发 / 0.903 成功 / 10.7° / 7.65ms；纯视觉 0.801/0.787/18.4°/7.60ms；纯风觉 0.527/0.000/68.0°/零放电。
-  - 分场景（web\results.json）：黑夜召回 0.932→0.634、误报 0.316→0.036、潜伏 8.52ms；暴风方向 30.7°、成功率 0.531；
-    高速误报 FAR 0.210→0.305→0.545（低/中/高速）。
-- v3 复现口径要点：make_pref(210,325,SEED) 的 pd_pref[:,1] 为「保留参数未接入前向」，绝不能删（保 RNG 顺序）。
-- v3 验证集 = build_dataset(1200, SEED+2=20240523)；run_eval 每模式独立 rng(777)、B=1 逐样本编码 → v4 保持一致。
-- make_web_data.py 用 SEED=20240521 重建 pd_pref/wind_pref：**训练种子变了 pref 也变**，v4 导出须带 pref_seed。
+## Environment / Baseline Facts (verified)
+- Graph: 1871 nodes / 45524 edges; visual input 210 (LPLC2), wind input 325 (JO-B/JO-C), GF 2, output 169.
+- CPU: 16 logical cores; RAM 16GB; torch 2.14.0+cpu (pylibs).
+- v3 baseline (REPORT.md / metrics.json, validation set 1200, training seed 20240521):
+  - Fusion 0.799 trigger / 0.903 success / 10.7° / 7.65ms; vision only 0.801/0.787/18.4°/7.60ms; wind only 0.527/0.000/68.0°/zero fires.
+  - Per-scenario (web\results.json): night recall 0.932→0.634, false alarm 0.316→0.036, latency 8.52ms; storm direction 30.7°, success 0.531;
+    high-speed false alarm FAR 0.210→0.305→0.545 (low/medium/high speed).
+- v3 reproduction metric key: make_pref(210,325,SEED) pd_pref[:,1] is "reserved parameter not connected to forward pass" — must not be deleted (preserves RNG ordering).
+- v3 validation set = build_dataset(1200, SEED+2=20240523); run_eval uses independent rng(777) per mode, B=1 per-sample encoding → v4 keeps consistent.
+- make_web_data.py uses SEED=20240521 to rebuild pd_pref/wind_pref: **changing the training seed changes pref**; v4 exports must carry pref_seed.
 
-## 决策记录
-- 验证集/OOD 集跨 3 个训练种子**固定**（val=rng(20240523)、OOD=独立固定种子），std 只反映训练随机性；
-  种子 20240521 的 val 与 v3 完全同一批样本 → 与 v3 可直接对比。
-- 检查点选择与早停都盯**验证损失**（v3 是每 5 轮 score 选优）；此差异将在报告中如实声明。
-- 输入增强只作用于训练；验证评估保持干净编码（与 v3 口径一致）；OOD 编码用 2× 噪声。
-- OOD 分布偏移（全部写进报告）：速度 60%~U(7,12)+40%~U(3,12)（上限 12 m/s、快威胁占比加大）、
-  d~U(3,40)cm、az~U(-2,2)rad、el~U(-0.9,0.9)（角度分布不同）、miss~U(0,10)cm、
-  风压 ×2 再叠加环境风 U(0.01,0.03)cm/ms（风场更强）、编码噪声 σ~U(0,2·NOISE_STD)（传感器噪声×2）。
-  标签规则不变（ṙ<0 且 ttc<50ms 且 r<25cm；esc=−r̂）。
+## Decision Log
+- Validation set / OOD set **fixed** across 3 training seeds (val=rng(20240523), OOD=independent fixed seed); std only reflects training randomness;
+  seed 20240521 val is identical to v3's sample set → directly comparable with v3.
+- Checkpoint selection and early stopping both monitor **validation loss** (v3 selected by score every 5 epochs); this difference will be stated honestly in the report.
+- Input augmentation only applies to training; validation evaluation keeps clean encoding (consistent with v3 metrics); OOD encoding uses 2× noise.
+- OOD distribution shift (all documented in report): speed 60%~U(7,12)+40%~U(3,12) (capped at 12 m/s, more fast threats),
+  d~U(3,40)cm, az~U(-2,2)rad, el~U(-0.9,0.9) (different angle distributions), miss~U(0,10)cm,
+  wind pressure ×2 plus environmental wind U(0.01,0.03)cm/ms (stronger wind field), encoding noise σ~U(0,2·NOISE_STD) (sensor noise ×2).
+  Label rules unchanged (ṙ<0 AND ttc<50ms AND r<25cm; esc=−r̂).
 
-## 安全边界
-- v4\ 以外只读；web\results.json、web\snn_data.js、snn_trained.json 绝不写；
-- 不运行 web\evaluate.js / web\make_web_data.py（会覆盖 v3 产物）。
+## Safety Boundaries
+- Read-only outside v4\; never write to web\results.json, web\snn_data.js, snn_trained.json;
+- Do not run web\evaluate.js / web\make_web_data.py (would overwrite v3 artifacts).
 
-## 种子 20240521 结果速记（完整数字在 v4\metrics_seed20240521.json / v4\results_v4.json）
-- 训练跑满 25 轮（早停未触发，val 最优恰在 ep25=0.6861，仍在改善→25 轮上限是约束）；train 0.97→0.83；
-  gap(train−val) 全程 +0.10~+0.20（增强使训练分布更难；非过拟合形态——val 一直在降）。
-- Python 验证 1200（干净编码）：融合 0.762/0.773/18.9°/6.99ms（v3: 0.799/0.903/10.7°/7.65ms）
-  → 触发/成功率/方向**退步**、潜伏期**更快**；纯视觉 0.783/0.681/20.2°/7.48ms（v3 0.801/0.787/18.4°/7.60）；
-  纯风觉 0.570/0.092/46.4°/7.65ms（v3 0.527/0.000/68.0°/零放电）→ **质变：首次可判别**（recall 0.141/FAR 0.044）。
-- JS 矩阵（5 评估种子×200）：暴风 succ 0.531→0.771、方向 30.7°→20.8°（**显著改善**）；黑夜 recall 0.634→0.624（≈未改善）；
-  高速 FAR 0.545→0.510（略好）；晴天融合 succ 0.926→0.790、方向 10.6°→18.9°（**退步**）；潜伏期普遍快 ~0.5-0.8ms。
-- priming：弱视觉 0.017 / 弱风觉 0.167 / 弱叠加 0.283（v3: 0/0/0.017）→ 跨模态预激活**恢复**。
-- OOD 2000：融合 0.592/0.520/30.0°/6.09ms，recall 0.970 / FAR 0.770（高召回但高误报；分布偏移下判别力受损）。
-- 机制解读（供报告）：模态 dropout + 噪声把网络从"视觉独大"推向"双模态冗余"，换来了暴风/纯风觉/priming/潜伏期，
-  代价是干净分布上的方向精度（10.7°→18.9°）与成功率——典型的鲁棒性-精度权衡；建议阶段 B 试：
-  ① 方向损失按模态条件化或分组学习率；② dropout 概率退火（前 10 轮 0.12→后段 0.05）；③ 延长 epochs（val 在 ep25 仍降）；
-  ④ 黑夜需 visGain 域随机化（本阶段未做，因为"一次只改数据"清单里未列入环境增广）。
+## Seed 20240521 Quick Results (full numbers in v4\metrics_seed20240521.json / v4\results_v4.json)
+- Training ran full 25 epochs (early stopping not triggered, val best at ep25=0.6861, still improving → 25 epoch cap is the constraint); train 0.97→0.83;
+  gap (train−val)全程 +0.10~+0.20 (augmentation makes training distribution harder; not overfitting — val keeps decreasing).
+- Python validation 1200 (clean encoding): fusion 0.762/0.773/18.9°/6.99ms (v3: 0.799/0.903/10.7°/7.65ms)
+  → trigger / success rate / direction **regressed**, latency **faster**; vision only 0.783/0.681/20.2°/7.48ms (v3 0.801/0.787/18.4°/7.60);
+  wind only 0.570/0.092/46.4°/7.65ms (v3 0.527/0.000/68.0°/zero fires) → **qualitative change: first time discriminative** (recall 0.141/FAR 0.044).
+- JS matrix (5 eval seeds × 200): storm success 0.531→0.771, direction 30.7°→20.8° (**significant improvement**); night recall 0.634→0.624 (≈no improvement);
+  high-speed FAR 0.545→0.510 (slightly better); clear fusion success 0.926→0.790, direction 10.6°→18.9° (**regressed**); latency universally ~0.5–0.8ms faster.
+- Priming: weak vision 0.017 / weak wind 0.167 / weak stacked 0.283 (v3: 0/0/0.017) → cross-modal pre-activation **restored**.
+- OOD 2000: fusion 0.592/0.520/30.0°/6.09ms, recall 0.970 / FAR 0.770 (high recall but high false alarm; discriminative ability受损 under distribution shift).
+- Mechanistic interpretation (for report): modality dropout + noise pushes the network from "vision-dominant" toward "dual-modality redundancy," trading clean-set direction accuracy (10.7°→18.9°) and success rate for storm / wind-only / priming / latency improvements — a classic robustness-accuracy tradeoff; Phase B suggestions:
+  ① direction loss conditioned on modality or grouped learning rates; ② dropout probability annealing (0.12 in first 10 epochs → 0.05 later); ③ extend epochs (val still decreasing at ep25);
+  ④ night requires visGain domain randomization (not done this phase because "data-only changes" list did not include environmental augmentation).

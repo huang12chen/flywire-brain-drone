@@ -1,8 +1,8 @@
 /* =====================================================================
- * web\smoke_drone.js —— 阶段 4：无人机物理 + 适配层回归自测（Node 运行）
+ * web\smoke_drone.js —— Phase 4: Drone Physics + Adapter Layer Regression Self-Test (Node Run)
  *   F:\Node\node.exe web\smoke_drone.js
- * 四项：① 悬停稳定（5s 漂移<0.3）② 逃逸响应（触发后 <300ms 速度逃逸分量>0）
- *       ③ 飞手一帧接管 ④ DronePhysics.selfTest() 全 PASS
+ * Four items: ① Hover Stability (5s drift<0.3) ② Escape Response (triggered <300ms escape velocity component>0)
+ *       ③ Pilot One-Frame Takeover ④ DronePhysics.selfTest() All PASS
  * ===================================================================== */
 'use strict';
 const fs = require('fs');
@@ -17,25 +17,25 @@ function chk(ok, name, extra) {
 }
 const stOf = p => ({ pos: p.pos, vel: p.vel, roll: p.eulerAngles().roll, pitch: p.eulerAngles().pitch, yaw: p.eulerAngles().yaw, groundY: 6 });
 
-console.log('==== 无人机物理+适配层自测（阶段4）====');
+console.log('==== Drone Physics + Adapter Layer Self-Test (Phase 4) ====');
 
-/* ① 悬停稳定：4 电机 = HOVER，悬停 5s，位置漂移 <0.3 */
+/* ① Hover Stability: 4 motors = HOVER, hover for 5s, position drift <0.3 */
 {
   const p = new DronePhysics();
   p.pos.y = 10;
   const h = DronePhysics.HOVER;
   for (let t = 0; t < 5; t += 0.016) p.update(0.016, [h, h, h, h]);
   const drift = Math.hypot(p.pos.x, p.pos.y - 10, p.pos.z);
-  chk(drift < 0.3, `悬停稳定：5s 漂移=${drift.toFixed(4)} < 0.3`);
+  chk(drift < 0.3, `Hover Stability: 5s drift=${drift.toFixed(4)} < 0.3`);
 }
 
-/* ② 逃逸响应：脑触发后 <300ms，速度在逃逸方向分量 >0
- * escapeDir 网络帧 (0,1,2)=(x,z,y) 世界分量：[0.6,-0.8,0] → 世界水平 (x=0.6, z=-0.8) */
+/* ② Escape Response: After brain trigger, <300ms, velocity in escape direction component >0
+ * escapeDir network frame (0,1,2)=(x,z,y) world component: [0.6,-0.8,0] → world horizontal (x=0.6, z=-0.8) */
 {
   const p = new DronePhysics();
   p.pos.y = 10;
   const ad = new DroneAdapter({ rng: DroneAdapter.makeRng(20240521) });
-  for (let i = 0; i < 30; i++) p.update(0.016, ad.update(null, stOf(p), 16, false));   // CRUISE 先稳一下
+  for (let i = 0; i < 30; i++) p.update(0.016, ad.update(null, stOf(p), 16, false));   // CRUISE stabilize first
   let okAt = -1;
   for (let i = 0; i < 20; i++) {
     const bo = i === 0 ? { triggered: true, escapeDir: [0.6, -0.8, 0] } : null;
@@ -43,31 +43,31 @@ console.log('==== 无人机物理+适配层自测（阶段4）====');
     const dot = p.vel.x * 0.6 + p.vel.z * (-0.8);
     if (dot > 0 && okAt < 0) okAt = (i + 1) * 16;
   }
-  chk(okAt >= 0 && okAt < 300, `逃逸响应：${okAt}ms 时速度逃逸分量 >0（要求 <300ms）`);
+  chk(okAt >= 0 && okAt < 300, `Escape Response: at ${okAt}ms escape velocity component >0 (requires <300ms)`);
 }
 
-/* ③ 飞手一帧接管：pilotActive=true 当帧适配层旁路（0 电机、状态=飞手）；
- *    world.html 现有立即接管逻辑原样（keydown 同帧 selAgent.bionic=false → 旧运动学，适配层被旁路） */
+/* ③ Pilot One-Frame Takeover: pilotActive=true, adapter layer bypassed that frame (0 motors, state=pilot);
+ *    world.html existing immediate takeover logic unchanged (keydown same frame selAgent.bionic=false → old kinematics, adapter layer bypassed) */
 {
   const p = new DronePhysics();
   p.pos.y = 10;
   const ad = new DroneAdapter({ rng: DroneAdapter.makeRng(7) });
   for (let i = 0; i < 10; i++) p.update(0.016, ad.update({ triggered: true, escapeDir: [1, 0, 0] }, stOf(p), 16, false));
-  const m = ad.update(null, stOf(p), 16, true);      // 飞手接管的那一帧
+  const m = ad.update(null, stOf(p), 16, true);      // The frame when pilot takes over
   const bypassOK = ad.lastStateCN === '飞手' && m.every(v => v === 0);
   const html = fs.readFileSync(path.join(__dirname, 'world.html'), 'utf8');
   const keydownOK = /addEventListener\('keydown'[\s\S]{0,600}?selAgent\.bionic = false;/.test(html);
   const gateOK = /function ensureDronePhys\(a\)[\s\S]{0,240}?a\.kind === 'drone' && DRONE_PHYS_ON && a\.bionic/.test(html);
   chk(bypassOK && keydownOK && gateOK,
-    `飞手一帧接管：适配层同帧旁路=${bypassOK}｜keydown 同帧切断=${keydownOK}｜bionic 门控=${gateOK}`);
+    `Pilot One-Frame Takeover: adapter same-frame bypass=${bypassOK}｜keydown same-frame cut=${keydownOK}｜bionic gating=${gateOK}`);
 }
 
-/* ④ DronePhysics.selfTest() 全 PASS */
+/* ④ DronePhysics.selfTest() All PASS */
 {
   const s = DronePhysics.selfTest();
   console.log('  ' + s);
-  chk(/\[PASS\]/.test(s) && !/\[FAIL\]/.test(s) && /总评 PASS/.test(s), 'DronePhysics.selfTest() 全 PASS');
+  chk(/\[PASS\]/.test(s) && !/\[FAIL\]/.test(s) && /总评 PASS/.test(s), 'DronePhysics.selfTest() All PASS');
 }
 
-console.log(`\n==== 自检：${pass}/4 通过 ====`);
+console.log(`\n==== Self-Test: ${pass}/4 Passed ====`);
 if (fail > 0) process.exit(1);

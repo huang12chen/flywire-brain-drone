@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>果蝇视风融合逃逸沙盒 — FlyWire SNN</title>
+<title>Fruit Fly Visuo-Wind Fusion Escape Sandbox — FlyWire SNN</title>
 <style>
   body { margin: 0; background: #0b0e14; color: #d7e0ea; font-family: "Microsoft YaHei", sans-serif; overflow: hidden; }
   #hud { position: fixed; top: 12px; left: 12px; background: rgba(12,18,28,.86); border: 1px solid #2a3a52;
@@ -22,50 +22,50 @@
 </head>
 <body>
 <div id="hud">
-  <h1>果蝇逃逸沙盒（FlyWire SNN 大脑）</h1>
-  模式：<b id="mMode">融合</b><br>
-  视觉膨胀率 dθ/dt：<b id="mLoom">0.00</b> rad/s<br>
-  风压 |u|：<b id="mWind">0.0000</b><br>
-  GF 膜电位峰值：<b id="mV">0.00</b> / 阈值 1.00<br>
-  GF 状态：<span id="mGF" class="dim">静息</span><br>
-  逃逸潜伏期：<b id="mLat">—</b><br>
+  <h1>Fruit Fly Escape Sandbox (FlyWire SNN Brain)</h1>
+  Mode: <b id="mMode">Fusion</b><br>
+  Visual Looming Rate dθ/dt: <b id="mLoom">0.00</b> rad/s<br>
+  Wind Pressure |u|: <b id="mWind">0.0000</b><br>
+  GF Membrane Peak: <b id="mV">0.00</b> / Threshold 1.00<br>
+  GF State: <span id="mGF" class="dim">Resting</span><br>
+  Escape Latency: <b id="mLat">—</b><br>
   <hr style="border-color:#2a3a52">
-  回合：<b id="mRounds">0</b>　成功躲避：<b id="mEsc">0</b>　被撞：<b id="mHit">0</b><br>
-  躲避成功率：<b id="mRate">—</b>
+  Rounds: <b id="mRounds">0</b>&#12288;Dodge: <b id="mEsc">0</b>&#12288;Hit: <b id="mHit">0</b><br>
+  Dodge Rate: <b id="mRate">—</b>
 </div>
 <div id="panel">
-  感知模式：
+  Sensory Mode:
   <select id="selMode">
-    <option value="fusion">融合（视觉+风觉）</option>
-    <option value="vision_only">纯视觉</option>
-    <option value="wind_only">纯风觉</option>
+    <option value="fusion">Fusion (Vision + Wind)</option>
+    <option value="vision_only">Vision Only</option>
+    <option value="wind_only">Wind Only</option>
   </select>
-  威胁速度：<input type="range" id="spd" min="1" max="12" step="0.5" value="5"><span id="spdVal">5.0</span> m/s
+  Threat Speed: <input type="range" id="spd" min="1" max="12" step="0.5" value="5"><span id="spdVal">5.0</span> m/s
   <br>
-  <button id="btnRandom">随机发射威胁</button>
-  <button id="btnAuto">自动演示 10 回合</button>
-  <button id="btnBatch">批量统计 50 次（验证效果）</button>
-  <button id="btnReset">清零统计</button>
+  <button id="btnRandom">Launch Random Threat</button>
+  <button id="btnAuto">Auto Demo 10 Rounds</button>
+  <button id="btnBatch">Batch Stats 50 Runs (Validate)</button>
+  <button id="btnReset">Reset Stats</button>
   <div id="batchOut" class="dim" style="margin-top:6px"></div>
 </div>
-<div id="tip">点击画面 = 从该方向发射一个撞向果蝇的物体。<br>
-当巨纤维(GF)放电时，果蝇按 SNN 输出的逃逸方向瞬间起跳。</div>
+<div id="tip">Click canvas = launch an object from that direction toward the fly.<br>
+When the Giant Fiber (GF) fires, the fly instantly takes off in the escape direction output by the SNN.</div>
 
 <script src="vendor/three.min.js"></script>
 <script src="snn_data.js"></script>
 <script src="snn_runtime.js"></script>
 <script>
-/* ============ 物理常量（与训练端 cues_and_labels 完全一致） ============
-   1 世界单位 = 1 cm；速度内部单位 cm/ms
-   视觉膨胀率：θ=2·atan(s/r)  →  dθ/dt = −2 s ṙ/(r²+s²)   [rad/ms] ×1000 → rad/s
-   风压：u = s²·|v|/r²，方向沿威胁速度方向（球体势流近似）                */
-const FLY_R = 0.5;            // 果蝇半径 cm
-const ESCAPE_SPEED = 0.15;    // 起跳速度 0.15 cm/ms = 1.5 m/s（果蝇起跳量级）
+/* ============ Physics Constants (matching training-side cues_and_labels exactly) ============
+   1 world unit = 1 cm; internal speed unit cm/ms
+   Visual looming rate: θ=2·atan(s/r)  →  dθ/dt = −2 s ṙ/(r²+s²)   [rad/ms] ×1000 → rad/s
+   Wind pressure: u = s²·|v|/r², direction along threat velocity (sphere potential flow approximation)                */
+const FLY_R = 0.5;            // Fly radius cm
+const ESCAPE_SPEED = 0.15;    // Takeoff speed 0.15 cm/ms = 1.5 m/s (fruit fly takeoff magnitude)
 
 const runtime = new SNNRuntime(window.SNN_DATA);
 let mode = 'fusion';
 
-/* ============ Three.js 场景 ============ */
+/* ============ Three.js Scene ============ */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b0e14);
 const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 2000);
@@ -93,26 +93,26 @@ for (const sgn of [-1, 1]) {
 }
 scene.add(fly);
 
-let threat = null;                       // {mesh, r(半径cm), pos, vel, active, t0, escaped}
+let threat = null;                       // {mesh, r(radius cm), pos, vel, active, t0, escaped}
 let flyVel = new THREE.Vector3();
 const stats = { rounds: 0, esc: 0, hit: 0 };
 
-/* ============ 线索计算（第一性原理物理映射） ============ */
+/* ============ Cue Computation (First-Principles Physics Mapping) ============ */
 function computeCues(th) {
-  const rvec = new THREE.Vector3().subVectors(th.pos, fly.position);   // 威胁相对果蝇位置
+  const rvec = new THREE.Vector3().subVectors(th.pos, fly.position);   // Threat position relative to fly
   const r = rvec.length() || 1e-6;
   const rhat = rvec.clone().divideScalar(r);
   const v = th.vel;                                                    // cm/ms
-  const rdot = v.dot(rhat);                                            // 接近为负
+  const rdot = v.dot(rhat);                                            // Negative when approaching
   const looming = Math.max(0, -2 * th.r * rdot / (r * r + th.r * th.r)) * 1000; // rad/s
   const vmag = v.length();
-  const u = th.r * th.r * vmag / (r * r + 1e-9);                       // 风压幅值
+  const u = th.r * th.r * vmag / (r * r + 1e-9);                       // Wind pressure magnitude
   const windVec = vmag > 1e-9 ? v.clone().multiplyScalar(u / vmag) : new THREE.Vector3();
   const az = Math.atan2(rvec.y + 1e-9, rvec.x);
   return { r, rhat, rdot, looming, windVec, az };
 }
 
-/* ============ 回合逻辑 ============ */
+/* ============ Round Logic ============ */
 function launch(azimuth, elevation, speedMs, radius) {
   if (threat) endRound('miss');
   const s = radius || (0.5 + Math.random() * 2.5);
@@ -125,7 +125,7 @@ function launch(azimuth, elevation, speedMs, radius) {
   scene.add(mesh);
   const pos = dir.clone().multiplyScalar(d0);
   mesh.position.copy(pos);
-  // 速度瞄准果蝇（略带脱靶量，物理上更真实）
+  // Velocity aimed at fly (with slight miss offset, more physically realistic)
   const miss = Math.random() * 6;
   const tangent = new THREE.Vector3(-dir.y, dir.x, 0).normalize();
   const vdir = dir.clone().multiplyScalar(-Math.sqrt(Math.max(0, 1 - (miss / d0) ** 2)))
@@ -133,7 +133,7 @@ function launch(azimuth, elevation, speedMs, radius) {
   threat = { mesh, r: s, pos, vel: vdir.multiplyScalar(speedMs / 10), // m/s -> cm/ms
              active: true, t0: performance.now(), escaped: false, escapeDir: null };
   flyVel.set(0, 0, 0); fly.position.set(0, 0, 0);
-  setGF('静息', 'dim');
+  setGF('Resting', 'dim');
 }
 
 function endRound(result) {
@@ -157,25 +157,25 @@ function setGF(txt, cls) {
   el.className = cls || 'dim';
 }
 
-/* ============ 主循环：物理 + SNN 决策 + 渲染 ============ */
+/* ============ Main Loop: Physics + SNN Decision + Rendering ============ */
 let lastDecision = 0, fps = 0, lastT = performance.now();
 function animate(now) {
   requestAnimationFrame(animate);
   const dtMs = Math.min(50, now - lastT); lastT = now;
 
   if (threat && threat.active) {
-    // 1) 物理积分（威胁直线飞行 + 果蝇受控运动）
+    // 1) Physics integration (threat straight-line flight + fly controlled motion)
     threat.pos.addScaledVector(threat.vel, dtMs);
     threat.mesh.position.copy(threat.pos);
     fly.position.addScaledVector(flyVel, dtMs);
 
-    // 2) 碰撞判定（第一性原理：两球心距 < 半径和）
+    // 2) Collision detection (first-principles: two-sphere center distance < sum of radii)
     const cues = computeCues(threat);
     if (cues.r < threat.r + FLY_R) { endRound('hit'); }
     else if (cues.rdot > 0 && cues.r > 55) { endRound('miss'); }
     else if (now - threat.t0 > 8000) { endRound('miss'); }
 
-    // 3) SNN 决策（每 50 ms 决策一次 = 生物逃逸回路的工作节律）
+    // 3) SNN decision (one decision per 50 ms = biological escape circuit operating rhythm)
     if (threat && now - lastDecision > 50) {
       lastDecision = now;
       runtime.mode = mode;
@@ -185,14 +185,14 @@ function animate(now) {
         (Math.hypot(cues.windVec.x, cues.windVec.y, cues.windVec.z)).toFixed(4);
       document.getElementById('mV').textContent = out.vHubMax.toFixed(2);
       if (out.triggered && !threat.escaped) {
-        // GF 放电 → 沿 SNN 输出方向瞬间起跳（背离威胁）
+        // GF fires → instant takeoff along SNN output direction (away from threat)
         flyVel.set(out.escapeDir[0], out.escapeDir[1], out.escapeDir[2]).multiplyScalar(ESCAPE_SPEED);
         threat.escaped = true;
         threat.escapeDir = out.escapeDir;
         document.getElementById('mLat').textContent = (out.firstSpikeMs ?? 0) + ' ms';
-        setGF('放电！起跳', 'ok');
+        setGF('Firing! Takeoff', 'ok');
       } else if (!out.triggered) {
-        setGF('静息', 'dim');
+        setGF('Resting', 'dim');
       }
     }
   }
@@ -200,7 +200,7 @@ function animate(now) {
 }
 requestAnimationFrame(animate);
 
-/* ============ 交互 ============ */
+/* ============ Interaction ============ */
 renderer.domElement.addEventListener('click', (ev) => {
   const ndc = new THREE.Vector2((ev.clientX / innerWidth) * 2 - 1, -(ev.clientY / innerHeight) * 2 + 1);
   const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, camera);
@@ -215,7 +215,7 @@ document.getElementById('btnRandom').onclick = () =>
 document.getElementById('selMode').onchange = (e) => {
   mode = e.target.value;
   document.getElementById('mMode').textContent =
-    { fusion: '融合', vision_only: '纯视觉', wind_only: '纯风觉' }[mode];
+    { fusion: 'Fusion', vision_only: 'Vision Only', wind_only: 'Wind Only' }[mode];
 };
 document.getElementById('spd').oninput = (e) => document.getElementById('spdVal').textContent =
   parseFloat(e.target.value).toFixed(1);
@@ -234,10 +234,10 @@ document.getElementById('btnAuto').onclick = () => {
   }, 2500);
 };
 
-/* 批量统计：不用肉眼看，直接跑 50 个随机场景给出数字（和训练端指标同口径） */
+/* Batch statistics: no manual observation needed, run 50 random scenarios and output numbers (same metrics as training side) */
 document.getElementById('btnBatch').onclick = () => {
   const out = document.getElementById('batchOut');
-  out.textContent = '统计中…';
+  out.textContent = 'Computing…';
   setTimeout(() => {
     const N = 50; let trigOK = 0, hits = 0, nPos = 0, angSum = 0, angN = 0;
     for (let i = 0; i < N; i++) {
@@ -255,25 +255,25 @@ document.getElementById('btnBatch').onclick = () => {
       const u = s * s * v.length() / (d * d + 1e-9);
       const windVec = v.length() > 1e-9 ? v.clone().multiplyScalar(u / v.length()) : new THREE.Vector3();
       const ttc = rdot < 0 ? d / (-rdot) : 1e9;
-      const yTrig = (rdot < 0 && ttc < 50 && d < 25) ? 1 : 0;   // 与训练标签同口径
+      const yTrig = (rdot < 0 && ttc < 50 && d < 25) ? 1 : 0;   // Same criteria as training labels
       runtime.mode = mode;
       const res = runtime.simulate(looming, [windVec.x, windVec.y, windVec.z], Math.atan2(rhat.y, rhat.x));
       const pred = res.triggered ? 1 : 0;
       if (pred === yTrig) trigOK++;
       if (yTrig === 1) {
         nPos++;
-        const esc = rhat.clone().multiplyScalar(-1);             // 逃逸方向 = 背离威胁
+        const esc = rhat.clone().multiplyScalar(-1);             // Escape direction = away from threat
         const dvec = new THREE.Vector3(...res.escapeDir);
         const ang = Math.acos(Math.max(-1, Math.min(1, dvec.normalize().dot(esc)))) * 180 / Math.PI;
         angSum += ang; angN++;
         if (pred === 1 && ang < 30) hits++;
       }
     }
-    out.innerHTML = `【${document.getElementById('mMode').textContent}】50 个随机场景：` +
-      `触发准确率 <b>${(trigOK / N * 100).toFixed(1)}%</b>　` +
-      `避障成功率 <b>${(hits / Math.max(1, nPos) * 100).toFixed(1)}%</b>　` +
-      `方向误差 <b>${(angSum / Math.max(1, angN)).toFixed(1)}°</b>` +
-      `　<span class="dim">（威胁样本 ${nPos} 条）</span>`;
+    out.innerHTML = `[${document.getElementById('mMode').textContent}] 50 Random Scenarios: ` +
+      `Trigger Accuracy <b>${(trigOK / N * 100).toFixed(1)}%</b>&#12288;` +
+      `Obstacle Dodge Rate <b>${(hits / Math.max(1, nPos) * 100).toFixed(1)}%</b>&#12288;` +
+      `Direction Error <b>${(angSum / Math.max(1, angN)).toFixed(1)}°</b>` +
+      `&#12288;<span class="dim">(Threat samples: ${nPos})</span>`;
   }, 30);
 };
 

@@ -1,13 +1,13 @@
-/* snn_runtime.js — 训练好的果蝇逃逸 SNN 的浏览器推理引擎
- * 与 train_snn.py 的前向计算逐行对应（LIF, dt=1ms, 软复位, 硬阈值发放）
- * 输入：视觉膨胀率 looming (rad/s) + 风矢量 wind (cm/ms) + 威胁方位角 az (rad)
- * 输出：GF 是否放电、首次放电潜伏期、逃逸方向 (3D 单位向量)
+/* snn_runtime.js — Browser inference engine for the trained fruit fly escape SNN
+ * Line-by-line corresponds to the forward computation in train_snn.py (LIF, dt=1ms, soft reset, hard threshold firing)
+ * Input: visual expansion rate looming (rad/s) + wind vector wind (cm/ms) + threat azimuth az (rad)
+ * Output: whether GF fires, first spike latency, escape direction (3D unit vector)
  *
- * 【v5·可视化旁路记录，数值口径逐位不变】simulate() 第 4 个可选参数 rec：
- *   传入普通对象时，逐步只读快照各群脉冲与 GF 膜电位（rec.steps[t] =
- *   {vis:[],wind:[],hid:[],gf:[],out:[],gfV:[]}，另有 rec.vth/rec.T/rec.firstStep）。
- *   记录只读取 s/v 的值写入独立缓冲，绝不参与任何浮点计算路径/顺序/类型；
- *   不传 rec 时执行路径与 v3 完全一致（逐位不变）。仅供 world.html"果蝇大脑"面板渲染。
+ * [v5 - visualization bypass recording, numerical values unchanged bit-for-bit] simulate() 4th optional parameter rec:
+ *   When passed a plain object, step-by-step read-only snapshots of each group's spikes and GF membrane potential (rec.steps[t] =
+ *   {vis:[],wind:[],hid:[],gf:[],out:[],gfV:[]}, plus rec.vth/rec.T/rec.firstStep).
+ *   Recording only reads s/v values into independent buffers, never participates in any floating-point computation path/sequence/type;
+ *   When rec is not passed, the execution path is identical to v3 (unchanged bit-for-bit). For world.html "fruit fly brain" panel rendering only.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -36,7 +36,7 @@
 
     this.inVision = Int32Array.from(data.input_vision_indices);
     this.inWind = Int32Array.from(data.input_wind_indices);
-    this.hub = Int32Array.from(data.hub_gf_indices);
+    this.hub = Int32Array.from(data.head_gf_indices);
     this.out = Int32Array.from(data.output_indices);
     this.inGain = Float32Array.from(data.in_gain);
 
@@ -45,7 +45,7 @@
     this.dirW = data.head_dir.w.map(function (r) { return Float32Array.from(r); });
     this.dirB = Float32Array.from(data.head_dir.b);
 
-    // 传感器编码参数（与训练端 make_pref 完全一致）
+    // Sensor encoding parameters (identical to make_pref on training side)
     this.pdPrefAz = Float32Array.from(data.pd_pref.map(function (r) { return r[0]; }));
     this.windPref = data.wind_pref.map(function (r) { return Float32Array.from(r); });
 
@@ -54,12 +54,12 @@
     this._cur = new Float32Array(this.n);
   }
 
-  /* 泊松发放率编码 —— 对应 train_snn.encode_spikes */
+  /* Poisson firing rate encoding — corresponds to train_snn.encode_spikes */
   SNNRuntime.prototype.encode = function (looming, windVec, threatAz) {
     var nVis = this.inVision.length, nIn = nVis + this.inWind.length;
-    var loomN = Math.min(1, looming / (looming + 2.0));          // min(1,·) 钳制，与 train:140 一致
+    var loomN = Math.min(1, looming / (looming + 2.0));          // min(1,·) clamping, consistent with train:140
     var wm = Math.hypot(windVec[0], windVec[1], windVec[2]);
-    var windN = Math.min(1, wm / (wm + WIND_HALF_SAT));          // min(1,·) 钳制，与 train:142 一致
+    var windN = Math.min(1, wm / (wm + WIND_HALF_SAT));          // min(1,·) clamping, consistent with train:142
     var rates = new Float32Array(nIn);
     var i;
     for (i = 0; i < nVis; i++) {
@@ -75,23 +75,23 @@
     } else {
       for (i = 0; i < this.inWind.length; i++) rates[nVis + i] = BASE_RATE_HZ;
     }
-    // 消融模式：与训练端对照实验一致（关闭某通道的全部脉冲）
+    // Ablation mode: consistent with training-side controlled experiments (disable all spikes for a channel)
     if (this.mode === 'vision_only') for (i = nVis; i < nIn; i++) rates[i] = 0;
     if (this.mode === 'wind_only') for (i = 0; i < nVis; i++) rates[i] = 0;
 
-    // 生成 [T][N_in] 0/1 脉冲
+    // Generate [T][N_in] 0/1 spikes
     var sp = [];
     for (var t = 0; t < this.T; t++) {
       var row = new Float32Array(nIn);
-      // 【补丁·随机源可注入】构造后可设 rt.rng = fn（确定性实验用）；未设置时默认 Math.random，行为完全不变
-      for (var k = 0; k < nIn; k++) row[k] = (this.rng || Math.random)() < Math.min(0.9, rates[k] * 0.001) ? 1 : 0;   // p≤0.9 钳制，与 train:157 一致
+      // [Patch - injectable random source] After construction, can set rt.rng = fn (for deterministic experiments); defaults to Math.random if not set, behavior completely unchanged
+      for (var k = 0; k < nIn; k++) row[k] = (this.rng || Math.random)() < Math.min(0.9, rates[k] * 0.001) ? 1 : 0;   // p<=0.9 clamping, consistent with train:157
       sp.push(row);
     }
     return sp;
   };
 
-  /* 前向仿真 —— 对应 EscapeSNN.forward
-   * rec（可选）：可视化旁路记录器；仅收集只读状态快照，不参与任何数值计算 */
+  /* Forward simulation — corresponds to EscapeSNN.forward
+   * rec (optional): visualization bypass recorder; only collects read-only state snapshots, does not participate in any numerical computation */
   SNNRuntime.prototype.simulate = function (looming, windVec, threatAz, rec) {
     var spikes = this.encode(looming, windVec, threatAz);
     var n = this.n, T = this.T, E = this.src.length;
@@ -112,7 +112,7 @@
 
       for (var q = 0; q < n; q++) {
         v[q] = this.beta * v[q] + cur[q] - this.vth * s[q];
-        s[q] = (v[q] - this.vth) > 0 ? 1 : 0;   // 边界 >0 与 snntorch FastSigmoid 一致
+        s[q] = (v[q] - this.vth) > 0 ? 1 : 0;   // boundary >0 consistent with snntorch FastSigmoid
         spikeCount += s[q];
       }
       var fired = false;
@@ -123,14 +123,14 @@
       }
       if (fired && firstStep === T) firstStep = t + 1;
       for (var o = 0; o < nOut; o++) vOutSum[o] += v[this.out[o]];
-      // —— 可视化旁路记录（仅当传入 rec 时收集；只读 s/v 快照，不影响上面任何数值）——
+      // —— Visualization bypass recording (only collected when rec is passed; read-only s/v snapshots, does not affect any numerical values above) ——
       if (rec) {
         var st = { vis: [], wind: [], hid: [], gf: [], out: [], gfV: [] }, z;
         for (z = 0; z < nVis; z++) if (s[this.inVision[z]] > 0) st.vis.push(this.inVision[z]);
         for (z = 0; z < this.inWind.length; z++) if (s[this.inWind[z]] > 0) st.wind.push(this.inWind[z]);
         for (z = 0; z < nHub; z++) { st.gf.push(s[this.hub[z]] > 0 ? 1 : 0); st.gfV.push(v[this.hub[z]]); }
         for (z = 0; z < nOut; z++) if (s[this.out[z]] > 0) st.out.push(this.out[z]);
-        for (z = 0; z < n; z++) if (s[z] > 0) st.hid.push(z);   // 全体放电快照（含各群，面板自行归组）
+        for (z = 0; z < n; z++) if (s[z] > 0) st.hid.push(z);   // Full firing snapshot (includes all groups, panel groups them on its own)
         rec.steps.push(st);
       }
     }
@@ -141,15 +141,15 @@
     for (var b = 0; b < 3; b++) {
       for (var c = 0; c < nOut; c++) dir[b] += this.dirW[b][c] * (vOutSum[c] / T);
     }
-    var dl = Math.hypot(dir[0], dir[1], dir[2]) + 1e-8;   // 归一化与 train:342 一致（norm + 1e-8）
+    var dl = Math.hypot(dir[0], dir[1], dir[2]) + 1e-8;   // Normalization consistent with train:342 (norm + 1e-8)
     dir[0] /= dl; dir[1] /= dl; dir[2] /= dl;
     if (rec) rec.firstStep = firstStep;
 
     return {
-      triggered: firstStep < T,               // GF 放电 = 逃逸触发（机制化判据）
+      triggered: firstStep < T,               // GF firing = escape triggered (mechanistic criterion)
       firstSpikeMs: firstStep < T ? firstStep : null,
       triggerProb: 1 / (1 + Math.exp(-trigLogit)),
-      escapeDir: dir,                          // 逃逸方向（背离威胁）
+      escapeDir: dir,                          // Escape direction (away from threat)
       vHubMax: vHubMax,
       gfSpikes: hubSpk,
       spikeCount: spikeCount / (n * T)

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>果蝇·微观世界 — 3D 仿生试验场</title>
+<title>Fruit Fly · Micro World — 3D Bionic Testbed</title>
 <style>
   :root {
     --panel: rgba(16, 24, 36, .82); --line: #35506e; --gold: #ffd479; --sky: #7fd1ff;
@@ -37,73 +37,73 @@
            font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; }
   #banner { position: fixed; top: 42%; width: 100%; text-align: center; font-size: 46px; letter-spacing: 8px;
             color: #fff; text-shadow: 0 3px 18px rgba(0,0,0,.5); opacity: 0; transition: opacity .5s; pointer-events: none; }
-  /* 阶段1/2：飞行遥测条（电机转速） */
+  /* Phase 1/2: Flight telemetry bars (motor RPM) */
   .mbar { display:inline-block; width:78px; height:8px; background:#0b1420; border:1px solid var(--line); border-radius:4px; overflow:hidden; vertical-align:middle; }
   .mbar i { display:block; height:100%; width:0; background:linear-gradient(90deg,#2e8b57,#7fd1ff); }
 </style>
 </head>
 <body>
 <div id="hud" class="panel">
-  <h1>果蝇 · 微观世界</h1>
-  场景：<b id="mScene">草原</b>　天气：<b id="mWeather">晴</b><br>
-  载体：<b id="mBody">果蝇</b>　控制：<span id="mMode" class="tag ok">仿生</span><br>
+  <h1>Fruit Fly · Micro World</h1>
+  Scene：<b id="mScene">Meadow</b>　Weather：<b id="mWeather">Sunny</b><br>
+  Body：<b id="mBody">Fruit Fly</b>　Control：<span id="mMode" class="tag ok">Bionic</span><br>
   <hr>
-  视觉膨胀率：<b id="mLoom">0.00</b> rad/s<br>
-  风压 |u|：<b id="mWind">0.0000</b><br>
-  GF 膜电位：<b id="mV">0.00</b>/1.00　<span id="mGF" class="dim">静息</span><br>
-  逃逸潜伏期：<b id="mLat">—</b><br>
+  Loom Rate：<b id="mLoom">0.00</b> rad/s<br>
+  Wind |u|：<b id="mWind">0.0000</b><br>
+  GF Membrane：<b id="mV">0.00</b>/1.00　<span id="mGF" class="dim">Resting</span><br>
+  Escape Latency：<b id="mLat">—</b><br>
   <hr>
-  <span class="dim">累计（计分回合）</span><br>
-  回合 <b id="mRounds">0</b>｜躲避 <b id="mEsc">0</b>｜被撞 <b id="mHit">0</b>｜虚警 <b id="mFA">0</b><br>
-  成功率 <b id="mRate">—</b>｜方向误差 <b id="mAng">—</b>
+  <span class="dim">Cumulative (Scored Rounds)</span><br>
+  Rounds <b id="mRounds">0</b>｜Escapes <b id="mEsc">0</b>｜Hits <b id="mHit">0</b>｜False Alarms <b id="mFA">0</b><br>
+  Success Rate <b id="mRate">—</b>｜Direction Error <b id="mAng">—</b>
   <hr>
-  <span class="dim">飞行遥测（无人机·飞行动力学）</span><br>
-  状态机：<b id="mFsm">—</b><br>
+  <span class="dim">Flight Telemetry (Drone · Flight Dynamics)</span><br>
+  State Machine：<b id="mFsm">—</b><br>
   M1 <span class="mbar"><i id="mM1"></i></span>　M2 <span class="mbar"><i id="mM2"></i></span><br>
   M3 <span class="mbar"><i id="mM3"></i></span>　M4 <span class="mbar"><i id="mM4"></i></span><br>
   roll：<b id="mRoll">—</b>　pitch：<b id="mPitch">—</b>
 </div>
 
 <div id="god" class="panel">
-  <h2>🎛️ 上帝控制台</h2>
-  场景：
-  <button data-scene="meadow" class="on">白日草原</button>
-  <button data-scene="night">黑夜</button>
-  <button data-scene="storm">暴风</button>
-  <button data-scene="gale">大风</button>
-  <br>载体（选中个体）：
-  <button id="bFly">果蝇身体</button><button id="bDrone">无人机身体</button>
-  <br>控制：<button id="bMode">🤖 仿生（点击切手动）</button>
-  <button id="bPhys">⚙️ 飞行动力学：开</button>
-  <span class="dim">手动时 WASD/方向键驾驶，任何按键=立即接管</span>
-  <h2>🔋 电量（装饰）</h2>
+  <h2>🎛️ God Console</h2>
+  Scene：
+  <button data-scene="meadow" class="on">Sunny Meadow</button>
+  <button data-scene="night">Night</button>
+  <button data-scene="storm">Storm</button>
+  <button data-scene="gale">Gale</button>
+  <br>Body (Selected Agent)：
+  <button id="bFly">Fruit Fly Body</button><button id="bDrone">Drone Body</button>
+  <br>Control：<button id="bMode">🤖 Bionic (click to switch manual)</button>
+  <button id="bPhys">⚙️ Flight Dynamics: ON</button>
+  <span class="dim">WASD/Arrow keys when manual, any key = immediate override</span>
+  <h2>🔋 Battery (Cosmetic)</h2>
   <span class="mbar" style="width:120px"><i id="mBat" style="width:100%"></i></span> <b id="mBatV">100%</b>
-  <button id="bLand">🛬 降落</button><button id="bTakeoff">🛫 起飞</button>
-  <span class="dim">100→0 用时 10min，耗尽自动降落；起飞随时恢复</span>
-  <h2>🪰 个体</h2>
-  <button id="bAddFly">+ 放一只果蝇</button>
-  <button id="bAddDrone">+ 放一架无人机</button>
-  <button id="bDel">− 移除选中</button>
+  <button id="bLand">🛬 Land</button><button id="bTakeoff">🛫 Takeoff</button>
+  <span class="dim">100→0 in 10min, auto-land when depleted; takeoff anytime</span>
+  <h2>🪰 Agents</h2>
+  <button id="bAddFly">+ Add Fruit Fly</button>
+  <button id="bAddDrone">+ Add Drone</button>
+  <button id="bDel">− Remove Selected</button>
   <select id="selAgent"></select>
-  <h2>🎯 威胁</h2>
-  脱靶量范围：<input id="rMiss" type="range" min="0" max="100" value="0" style="width:110px;vertical-align:middle">
-  <b id="mMiss">精准</b><br>
-  <span class="dim">精准=招招贴身 ↔ 宽松=多擦边（默认精准）</span><br>
-  <button id="bBall">红色扑击球</button>
-  <button id="bFrog">青蛙弹舌</button>
-  <button id="bFly2">蜻蜓俯冲</button>
-  <button id="bAuto">自动威胁 ×10</button>
-  <h2>🧠 大脑</h2>
-  <button id="bBrain">🧠 果蝇大脑面板</button>
-  <span class="dim">真实连接组回路图 + 决策窗脉冲传导 + GF 膜电位</span>
-  <h2>📊 实验</h2>
-  <button id="bBatch">一键跑 100 次统计</button>
-  <button id="bReset">清零统计</button>
+  <h2>🎯 Threats</h2>
+  Miss Range：<input id="rMiss" type="range" min="0" max="100" value="0" style="width:110px;vertical-align:middle">
+  <b id="mMiss">Precision</b><br>
+  <span class="dim">Precision=close-shave ↔ Loose=grazing (default precision)</span><br>
+  <button id="bBall">Red Pounce Ball</button>
+  <button id="bFrog">Frog Tongue</button>
+  <button id="bFly2">Dragonfly Dive</button>
+  <button id="bAuto">Auto Threat ×10</button>
+  <h2>🧠 Brain</h2>
+  <button id="bBrain">🧠 Fruit Fly Brain Panel</button>
+  <span class="dim">Real connectome circuit map + decision window pulse conduction + GF membrane potential</span>
+  <h2>📊 Experiments</h2>
+  <button id="bBatch">Run 100-Run Statistics</button>
+  <button id="bReset">Reset Stats</button>
   <div id="batchOut" class="dim" style="margin-top:6px"></div>
 </div>
 <div id="brain" class="panel">
   <div style="display:flex;justify-content:space-between;align-items:center">
-    <b>🧠 果蝇大脑 · 连接组实时放电</b><button id="bBrainX">关闭</button>
+    <b>🧠 Fruit Fly Brain · Connectome Live Firing</b><button id="bBrainX">Close</button>
   </div>
   <canvas id="brainCanvas" width="640" height="470"></canvas>
 </div>
@@ -119,32 +119,32 @@
 <script src="brain_panel.js"></script>
 <script>
 /* =====================================================================
- * 果蝇·微观世界 — 3D 仿生试验场
- * 物理单位：1 世界单位 = 1 cm，速度 cm/ms。线索公式与训练端严格一致：
+ * Fruit Fly · Micro World — 3D Bionic Testbed
+ * Physical units: 1 world unit = 1 cm, speed cm/ms. Cue formulas match training exactly:
  *   looming = max(0, -2·s·ṙ/(r²+s²))·1000   [rad/s]
- *   wind    = s²·|v|/r² · v̂                 [cm/ms 任意单位]
+ *   wind    = s²·|v|/r² · v̂                 [cm/ms arbitrary units]
  * ===================================================================== */
 const FLY_R = 0.55;
 const BODIES = {
-  fly:   { name: '果蝇',   accel: 0.0022, vmax: 0.16, turn: 0.020, drag: 0.985 },  // 轻盈爆发
-  drone: { name: '无人机', accel: 0.0009, vmax: 0.10, turn: 0.008, drag: 0.992 },  // 有惯性、加速度受限
+  fly:   { name: 'Fruit Fly',   accel: 0.0022, vmax: 0.16, turn: 0.020, drag: 0.985 },  // lightweight burst
+  drone: { name: 'Drone', accel: 0.0009, vmax: 0.10, turn: 0.008, drag: 0.992 },  // has inertia, acceleration limited
 };
-/* ---------- v5 四场景（实质差异：白日草浪云影 / 黑夜萤火虫月光 / 暴风斜雨风线 / 大风气流粒子） ---------- */
+/* ---------- v5 four scenes (key differences: sunny meadow cloud shadows / night firefly moonlight / storm diagonal rain wind streaks / gale airflow particles) ---------- */
 const WEATHER = {
-  meadow: { name: '白日草原', sky: 0x8fc4ea, fog: 0xbfd9ec, sun: 1.00, sunColor: 0xfff2d8, wind: [0, 0, 0],            visGain: 1.00, grass: 0x69b34c, sway: 0.35 },
-  night:  { name: '黑夜',     sky: 0x0d1526, fog: 0x131e33, sun: 0.22, sunColor: 0xa8c4ff, wind: [0, 0, 0],            visGain: 0.30, grass: 0x2f5e3a, sway: 0.15 },
-  storm:  { name: '暴风',     sky: 0x9aa8b4, fog: 0xb8c2cc, sun: 0.55, sunColor: 0xd8e2ee, wind: [0.00022, 0, 0.00012], visGain: 0.85, grass: 0x7aa85a, sway: 1.00 },
-  gale:   { name: '大风',     sky: 0x9fd4f0, fog: 0xcfe8f4, sun: 0.95, sunColor: 0xfff6df, wind: [0.00014, 0, 0.00008], visGain: 0.90, grass: 0x5fae6a, sway: 0.70 },
+  meadow: { name: 'Sunny Meadow', sky: 0x8fc4ea, fog: 0xbfd9ec, sun: 1.00, sunColor: 0xfff2d8, wind: [0, 0, 0],            visGain: 1.00, grass: 0x69b34c, sway: 0.35 },
+  night:  { name: 'Night',     sky: 0x0d1526, fog: 0x131e33, sun: 0.22, sunColor: 0xa8c4ff, wind: [0, 0, 0],            visGain: 0.30, grass: 0x2f5e3a, sway: 0.15 },
+  storm:  { name: 'Storm',     sky: 0x9aa8b4, fog: 0xb8c2cc, sun: 0.55, sunColor: 0xd8e2ee, wind: [0.00022, 0, 0.00012], visGain: 0.85, grass: 0x7aa85a, sway: 1.00 },
+  gale:   { name: 'Gale',     sky: 0x9fd4f0, fog: 0xcfe8f4, sun: 0.95, sunColor: 0xfff6df, wind: [0.00014, 0, 0.00008], visGain: 0.90, grass: 0x5fae6a, sway: 0.70 },
 };
 let weather = 'meadow';
 
-/* ---------- 基础场景 ---------- */
+/* ---------- Base Scene ---------- */
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, 0.1, 3000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;                     // v5 光影升级：阴影贴图
+renderer.shadowMap.enabled = true;                     // v5 lighting upgrade: shadow maps
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 addEventListener('resize', () => {
@@ -153,15 +153,15 @@ addEventListener('resize', () => {
 });
 
 const ambient = new THREE.AmbientLight(0xffffff, 0.55); scene.add(ambient);
-const hemi = new THREE.HemisphereLight(0xbfd9ff, 0x54683c, 0.28); scene.add(hemi);   // v5 光影升级：天光/地色半球补光
+const hemi = new THREE.HemisphereLight(0xbfd9ff, 0x54683c, 0.28); scene.add(hemi);   // v5 lighting upgrade: sky/ground hemisphere fill
 const sun = new THREE.DirectionalLight(0xfff2d8, 1.0); sun.position.set(80, 140, 60); scene.add(sun);
-sun.castShadow = true;                                 // v5 光影升级：太阳投影
+sun.castShadow = true;                                 // v5 lighting upgrade: sun shadow casting
 sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.camera.left = -200; sun.shadow.camera.right = 200;
 sun.shadow.camera.top = 200; sun.shadow.camera.bottom = -200;
 sun.shadow.camera.near = 10; sun.shadow.camera.far = 600;
 
-// 天空穹顶（渐变）
+// Sky dome (gradient)
 const sky = new THREE.Mesh(
   new THREE.SphereGeometry(1400, 24, 16),
   new THREE.ShaderMaterial({
@@ -173,7 +173,7 @@ const sky = new THREE.Mesh(
   }));
 scene.add(sky);
 
-// 地面
+// Ground
 const ground = new THREE.Mesh(
   new THREE.CircleGeometry(700, 48),
   new THREE.MeshLambertMaterial({ color: 0x69b34c }));

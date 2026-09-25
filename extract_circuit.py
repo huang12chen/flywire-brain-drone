@@ -1,30 +1,30 @@
 # -*- coding: utf-8 -*-
 """
-extract_circuit.py — 从 FlyWire 本地下载文件中提取「视觉膨胀 + 触角风觉 -> 巨纤维(GF) -> 下行/运动输出」子网络
+extract_circuit.py — Extract the "visual looming + antenna wind sense -> giant fiber (GF) -> descending/motor output" subnetwork from FlyWire local download files
 ==================================================================================================
-输入（只读，位于 DATA_DIR）：
-  connections_princeton.csv.gz      列: pre_root_id, post_root_id, neuropil, syn_count, nt_type
-                                    —— 注意：同一对 (pre,post) 在不同 neuropil 会有多行，需要合并求和
-  consolidated_cell_types.csv.gz    列: root_id, primary_type, additional_type(s)
-                                    —— 注意：巨纤维 GF 不是 primary_type='GF'，而是 primary_type='DNp01'
-                                       且 additional_type(s) 含 'Giant_Fiber, GF'
-  classification.csv.gz             列: root_id, flow, super_class, class, sub_class, ...
-                                    —— super_class: sensory/visual_projection/descending/motor ...
-  neurons.csv.gz                    列: root_id, group, nt_type, ... （神经元级递质预测，作兜底）
+Input (read-only, located in DATA_DIR):
+  connections_princeton.csv.gz      Columns: pre_root_id, post_root_id, neuropil, syn_count, nt_type
+                                     Note: the same pair (pre,post) may have multiple rows in different neuropils; need to merge and sum
+  consolidated_cell_types.csv.gz    Columns: root_id, primary_type, additional_type(s)
+                                     Note: giant fiber GF is not primary_type='GF', but primary_type='DNp01'
+                                        and additional_type(s) contains 'Giant_Fiber, GF'
+  classification.csv.gz             Columns: root_id, flow, super_class, class, sub_class, ...
+                                     super_class: sensory/visual_projection/descending/motor ...
+  neurons.csv.gz                    Columns: root_id, group, nt_type, ... (neuron-level neurotransmitter prediction, used as fallback)
 
-输出（写到脚本所在目录）：
-  escape_network_sparse.json        稀疏图（节点表 + 边表 + 权重），供 SNN 训练脚本使用
-  nodes.csv / edges.csv             便于人工核对的表格
+Output (written to the script's directory):
+  escape_network_sparse.json        Sparse graph (node table + edge table + weights), for use by SNN training scripts
+  nodes.csv / edges.csv             Human-readable tables for manual verification
 
-子图构造原则（与对话中 SOP 的差别，均以真实数据字段为准）：
-  1. 视觉输入 = primary_type == 'LPLC2'（视觉膨胀/宽场运动敏感视觉投射神经元）
-  2. 风觉输入 = primary_type in {'JO-B', 'JO-C'}（Johnston's 机械感受器，风/声/重力）
-  3. 逃逸中枢 = additional_type(s) 含 Giant_Fiber/GF（即 DNp01，左右各一）
-  4. 核心中间层 = 位于「输入 -> GF」短路径（≤3 条突触边，即最多 2 个中间神经元）上的神经元
-     —— GF 逃逸反应潜伏期仅数毫秒，生物学上就是少突触通路；同时避免 2 跳∩2 跳并集爆炸到上万节点
-  5. 输出层   = GF 正向 2 跳内、super_class ∈ {descending, motor} 的神经元（下行/脑内运动神经元）
-  6. 边 = 上述节点集合内部的全部连接；权重 W = sign(递质) * log1p(syn_count)
-     递质符号（果蝇）：ACH 兴奋(+1)；GABA 抑制(-1)；GLUT 在昆虫为抑制(-1)；DA/SER/OCT 为调质(+1 并标记)
+Subgraph construction principles (differences from the SOP discussed earlier; all based on real data fields):
+  1. Visual input = primary_type == 'LPLC2' (visual looming/wide-field motion-sensitive visual projection neurons)
+  2. Wind sense input = primary_type in {'JO-B', 'JO-C'} (Johnston's organ mechanoreceptors, wind/sound/gravity)
+  3. Escape hub = additional_type(s) contains Giant_Fiber/GF (i.e., DNp01, one on each side)
+  4. Core intermediate layer = neurons on the short path from input to GF (<=3 synaptic edges, i.e., at most 2 interneurons)
+     The GF escape response latency is only a few milliseconds; biologically this is a paucisynaptic pathway; also avoids the 2-hop union explosion to tens of thousands of nodes
+  5. Output layer = neurons within 2 forward hops from GF with super_class in {descending, motor} (descending/intracerebral motor neurons)
+  6. Edges = all connections within the above node set; weight W = sign(neurotransmitter) * log1p(syn_count)
+     Neurotransmitter signs (Drosophila): ACH excitatory (+1); GABA inhibitory (-1); GLUT inhibitory in insects (-1); DA/SER/OCT are modulatory (+1 and marked)
 """
 import os
 import json
@@ -33,7 +33,7 @@ import csv
 from collections import Counter
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = r'<FlyWire数据目录>'
+DATA_DIR = r'<FlyWire data directory>'
 
 PATH_CONN = os.path.join(DATA_DIR, 'connections_princeton.csv.gz')
 PATH_TYPES = os.path.join(DATA_DIR, 'consolidated_cell_types.csv.gz')
@@ -42,8 +42,8 @@ PATH_NEURONS = os.path.join(DATA_DIR, 'neurons.csv.gz')
 
 VISION_TYPES = {'LPLC2'}
 WIND_TYPES = {'JO-B', 'JO-C'}
-HUB_TOKENS = ('giant_fiber', 'gf')     # 在 additional_type(s) 中匹配
-HUB_PRIMARY = 'DNp01'                  # FlyWire 中巨纤维的 primary_type
+HUB_TOKENS = ('giant_fiber', 'gf')     # matched in additional_type(s)
+HUB_PRIMARY = 'DNp01'                  # primary_type of giant fiber in FlyWire
 OUTPUT_SUPER = {'descending', 'motor'}
 NT_SIGN = {'ACH': 1.0, 'GABA': -1.0, 'GLUT': -1.0, 'DA': 1.0, 'SER': 1.0, 'OCT': 1.0}
 MODULATORY_NT = {'DA', 'SER', 'OCT'}
@@ -57,7 +57,7 @@ def log(msg):
 
 
 def load_tables():
-    log('[1/6] 读取本地 CSV（只读）...')
+    log('[1/6] Reading local CSV files (read-only)...')
     cells = pd.read_csv(PATH_TYPES)
     cls = pd.read_csv(PATH_CLASS, usecols=['root_id', 'super_class', 'class', 'sub_class', 'flow'])
     ntn = pd.read_csv(PATH_NEURONS, usecols=['root_id', 'nt_type', 'nt_type_score'])
@@ -71,12 +71,12 @@ def load_tables():
         dtype={'pre_root_id': 'int64', 'post_root_id': 'int64', 'syn_count': 'int32',
                'neuropil': 'category', 'nt_type': 'category'},
     )
-    log(f'      细胞 {len(cells)} 个 | 连接原始行 {len(conn)} 条（按 neuropil 拆分，需合并）')
+    log(f'      Cells: {len(cells)} | Raw connection rows: {len(conn)} (split by neuropil, need merging)')
     return cells, cls, ntn, conn
 
 
 def find_nodes(cells):
-    log('[2/6] 定位输入层 / 逃逸中枢节点...')
+    log('[2/6] Locating input layer / escape hub nodes...')
     vision_ids = set(cells.loc[cells['primary_type'].isin(VISION_TYPES), 'root_id'])
     wind_ids = set(cells.loc[cells['primary_type'].isin(WIND_TYPES), 'root_id'])
 
@@ -84,27 +84,27 @@ def find_nodes(cells):
     hub_mask = add.str.contains('giant_fiber', regex=False) | (cells['primary_type'] == HUB_PRIMARY)
     hub_ids = set(cells.loc[hub_mask, 'root_id'])
 
-    log(f'      视觉输入 LPLC2 : {len(vision_ids)} 个')
-    log(f'      风觉输入 JO-B/C: {len(wind_ids)} 个')
-    log(f'      巨纤维 GF(DNp01): {len(hub_ids)} 个  root_id={sorted(hub_ids)}')
-    assert hub_ids, '未找到巨纤维 GF，请检查数据文件'
+    log(f'      Visual input LPLC2: {len(vision_ids)}')
+    log(f'      Wind sense input JO-B/C: {len(wind_ids)}')
+    log(f'      Giant fiber GF (DNp01): {len(hub_ids)}  root_id={sorted(hub_ids)}')
+    assert hub_ids, 'Giant fiber GF not found, please check data files'
     return vision_ids, wind_ids, hub_ids
 
 
 def aggregate_edges(conn):
-    log('[3/6] 合并同一对神经元在不同 neuropil 的连接行...')
+    log('[3/6] Merging connection rows for the same neuron pair across different neuropils...')
     g = conn.groupby(['pre_root_id', 'post_root_id'], sort=False)
     edges = g['syn_count'].sum().reset_index(name='syn_count')
-    # 取该对连接中突触数最多的那一行的递质类型作为主递质
+    # Use the neurotransmitter type from the row with the most synapses as the primary neurotransmitter for this pair
     idx = conn.groupby(['pre_root_id', 'post_root_id'], sort=False)['syn_count'].idxmax()
     nt = conn.loc[idx, ['pre_root_id', 'post_root_id', 'nt_type']].rename(columns={'nt_type': 'nt_major'})
     edges = edges.merge(nt, on=['pre_root_id', 'post_root_id'], how='left')
-    log(f'      合并后唯一有向边 {len(edges)} 条')
+    log(f'      Unique directed edges after merging: {len(edges)}')
     return edges
 
 
 def hop(edges, seeds, direction='forward', exclude=None):
-    """在聚合后的边表上做 1 跳扩展，返回新增节点集合。"""
+    """Perform 1-hop expansion on the aggregated edge table, returning the set of newly discovered nodes."""
     if not seeds:
         return set()
     if direction == 'forward':
@@ -119,7 +119,7 @@ def hop(edges, seeds, direction='forward', exclude=None):
 
 
 def build_subgraph(edges, cls_map, vision_ids, wind_ids, hub_ids):
-    log('[4/6] 以 GF 为中心做双向 2 跳抽稀（保留在 输入->GF 通路上的神经元）...')
+    log('[4/6] Performing bidirectional 2-hop pruning centered on GF (keeping neurons on the input->GF pathway)...')
     inputs = vision_ids | wind_ids
 
     fwd1 = hop(edges, inputs, 'forward') - inputs
@@ -127,19 +127,19 @@ def build_subgraph(edges, cls_map, vision_ids, wind_ids, hub_ids):
     rev1 = hop(edges, hub_ids, 'backward') - hub_ids
     rev2 = hop(edges, rev1, 'backward') - hub_ids - rev1
 
-    # 输入到 GF 的核心通路：只保留位于「输入 -> GF」≤3 边短路径上的神经元
-    #   1 个中间神经元: input -> x -> GF                (x ∈ fwd1 ∩ rev1)
-    #   2 个中间神经元: input -> x -> y -> GF           (x ∈ fwd1 ∩ rev2, y ∈ fwd2 ∩ rev1)
+    # Core pathway from input to GF: only keep neurons on the <=3 edge short path from input to GF
+    #   1 interneuron: input -> x -> GF                (x in fwd1 intersect rev1)
+    #   2 interneurons: input -> x -> y -> GF          (x in fwd1 intersect rev2, y in fwd2 intersect rev1)
     core = ((fwd1 & (rev1 | rev2)) | (fwd2 & rev1)) | hub_ids
 
-    # GF 下游输出层：正向 2 跳内的 下行/运动 神经元
+    # GF downstream output layer: descending/motor neurons within 2 forward hops
     down1 = hop(edges, hub_ids, 'forward') - hub_ids
     down2 = hop(edges, down1, 'forward') - hub_ids - down1
     out_ids = {n for n in (down1 | down2) if cls_map.get(n, '') in OUTPUT_SUPER}
 
     node_set = (inputs | core | out_ids | hub_ids)
-    log(f'      1 跳/2 跳候选: fwd {len(fwd1)}/{len(fwd2)}  rev {len(rev1)}/{len(rev2)}')
-    log(f'      核心通路神经元 {len(core)} 个 | GF 下行输出 {len(out_ids)} 个 | 节点合计 {len(node_set)} 个')
+    log(f'      1-hop/2-hop candidates: fwd {len(fwd1)}/{len(fwd2)}  rev {len(rev1)}/{len(rev2)}')
+    log(f'      Core pathway neurons: {len(core)} | GF descending output: {len(out_ids)} | Total nodes: {len(node_set)}')
     return node_set, core, out_ids
 
 
@@ -157,11 +157,11 @@ def main():
 
     node_set, core_ids, out_ids = build_subgraph(edges, cls_map, vision_ids, wind_ids, hub_ids)
 
-    log('[5/6] 导出子图边与权重 W = sign(NT) * log1p(syn_count)...')
+    log('[5/6] Exporting subgraph edges with weights W = sign(NT) * log1p(syn_count)...')
     sub_edges = edges[edges['pre_root_id'].isin(node_set) & edges['post_root_id'].isin(node_set)].copy()
-    sub_edges = sub_edges[sub_edges['syn_count'] >= 3].copy()  # 剔除 <3 的弱连接（与 FlyWire 筛选口径一致）
+    sub_edges = sub_edges[sub_edges['syn_count'] >= 3].copy()  # Remove weak connections with syn_count<3 (consistent with FlyWire filtering criteria)
 
-    # 递质：优先用连接行的主递质，缺失则用神经元级预测，再缺失记为 ACH
+    # Neurotransmitter: prefer the primary NT from the connection row; if missing, use neuron-level prediction; if still missing, default to ACH
     nt_major = sub_edges['nt_major'].astype(str)
     fallback = sub_edges['pre_root_id'].map(neuron_nt)
     nt_final = nt_major.where(nt_major.isin(NT_SIGN.keys()), fallback.astype(str))
@@ -203,7 +203,7 @@ def main():
         'weight': float(r.weight),
     } for r in sub_edges.itertuples()]
 
-    log('[6/6] 写出 escape_network_sparse.json / nodes.csv / edges.csv ...')
+    log('[6/6] Writing escape_network_sparse.json / nodes.csv / edges.csv ...')
     graph = {
         'meta': {
             'source': 'FlyWire FAFB (connections_princeton / consolidated_cell_types / classification / neurons)',
@@ -229,10 +229,10 @@ def main():
 
     role_cnt = Counter(n['role'] for n in node_records)
     log('')
-    log('==== 提取完成 ====')
-    log(f"节点 {len(node_records)} 个 {dict(role_cnt)}")
-    log(f"边   {len(edge_records)} 条 (syn_count>=3)")
-    log(f"输出 escape_network_sparse.json -> {BASE}")
+    log('==== Extraction complete ====')
+    log(f"Nodes: {len(node_records)} {dict(role_cnt)}")
+    log(f"Edges: {len(edge_records)} (syn_count>=3)")
+    log(f"Output escape_network_sparse.json -> {BASE}")
 
 
 if __name__ == '__main__':

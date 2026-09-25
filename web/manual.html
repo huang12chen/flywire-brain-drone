@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>果蝇·微观世界 — manual</title>
+<title>Fruit Fly · Microscopic World — Manual</title>
 <style>
   :root {
     --paper: #f7efdc;
@@ -29,7 +29,7 @@
   }
   .wrap { max-width: 940px; margin: 0 auto; padding: 28px 18px; }
 
-  /* ---------- 封面 ---------- */
+  /* ---------- Cover ---------- */
   .cover {
     background: linear-gradient(135deg, #fff3d6 0%, #ffe7c9 45%, #dff3e3 100%);
     border: 3px solid var(--line); border-radius: 28px;
@@ -46,7 +46,7 @@
   .cloud { position: absolute; font-size: 40px; opacity: .5; }
   .c1 { top: 12px; left: 24px; } .c2 { bottom: 10px; right: 30px; }
 
-  /* ---------- 目录 ---------- */
+  /* ---------- Table of Contents ---------- */
   .toc { background: var(--card); border: 3px dashed var(--line); border-radius: 22px;
          padding: 18px 24px; margin-bottom: 30px; }
   .toc b { color: var(--ink); }
@@ -55,7 +55,7 @@
            border: 2px solid var(--line); }
   .toc a:hover { background: var(--peach); }
 
-  /* ---------- 卡片 ---------- */
+  /* ---------- Card ---------- */
   .card {
     background: var(--card); border: 3px solid var(--line); border-radius: 24px;
     box-shadow: 0 7px 0 rgba(190, 155, 90, .16);
@@ -72,7 +72,7 @@
   .lead { color: var(--ink-dim); margin: 0 0 14px; font-size: 14px; }
   h3 { font-size: 17px; margin: 22px 0 8px; }
 
-  /* ---------- 表格 ---------- */
+  /* ---------- Table ---------- */
   table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; background: #fffef9; }
   th { background: var(--gold); color: var(--ink); }
   th, td { border: 2px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }
@@ -88,7 +88,7 @@
     padding: 1px 7px; font-family: Consolas, monospace; font-size: 13px;
   }
 
-  /* ---------- 提示框 ---------- */
+  /* ---------- Callout Boxes ---------- */
   .tip, .warn, .note {
     border-radius: 16px; padding: 12px 18px; margin: 14px 0; font-size: 14px;
   }
@@ -96,7 +96,7 @@
   .note { background: #eaf4fc; border: 2.5px dashed var(--sky); }
   .warn { background: #fff0ea; border: 2.5px dashed var(--peach); }
 
-  /* ---------- 步骤 ---------- */
+  /* ---------- Steps ---------- */
   .steps { list-style: none; padding-left: 6px; margin: 10px 0; }
   .steps li { margin: 10px 0; padding-left: 46px; position: relative; }
   .steps li::before {
@@ -112,7 +112,7 @@
   .q { background: var(--mint); font-weight: bold; }
   .a { background: #fff6e2; border: 2px solid var(--line); }
 
-  /* ---------- 插画小场景 ---------- */
+  /* ---------- Illustration Scene Strip ---------- */
   .scene-strip {
     display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin: 16px 0;
   }
@@ -132,236 +132,236 @@
 <body>
 <div class="wrap">
 
-  <!-- ============ 封面 ============ -->
+  <!-- ============ Cover ============ -->
   <div class="cover">
     <span class="cloud c1">☁️</span><span class="cloud c2">☁️</span>
     <div class="flies">🪰 ✨ 🪰</div>
-    <h1>果蝇 · 微观世界</h1>
-    <p class="sub">3D 仿生试验场 · manual（图文版）</p>
+    <h1>Fruit Fly · Microscopic World</h1>
+    <p class="sub">3D Bionic Testbed · Manual (Illustrated)</p>
     <div class="chips">
-      <span>🧬 真实连接组 SNN</span><span>👁️ 视觉 + 🌬️ 风觉双模态</span><span>⚡ 巨纤维逃逸反射</span><span>🚁 无人机仿生避障</span>
+      <span>🧬 Connectome SNN</span><span>👁️ Vision + 🌬️ Wind Dual-Modal</span><span>⚡ Giant Fiber Escape Reflex</span><span>🚁 Drone Bionic Obstacle Avoidance</span>
     </div>
   </div>
 
   <div class="toc">
-    <b>📌 目录</b><br>
-    <a href="#open">① 打开世界</a>
-    <a href="#ui">② 界面介绍</a>
-    <a href="#keys">③ 操作说明</a>
-    <a href="#play">④ 实验玩法</a>
-    <a href="#faq">⑤ 常见问题</a>
-    <a href="#science">⑥ 科学须知</a>
+    <b>📌 Table of Contents</b><br>
+    <a href="#open">① Open the World</a>
+    <a href="#ui">② Interface Guide</a>
+    <a href="#keys">③ Controls</a>
+    <a href="#play">④ Experiments</a>
+    <a href="#faq">⑤ FAQ</a>
+    <a href="#science">⑥ Scientific Notes</a>
   </div>
 
-  <!-- ============ ① 打开世界 ============ -->
+  <!-- ============ ① Open the World ============ -->
   <div class="card" id="open">
-    <h2><span class="badge">🌍</span>① 如何打开世界</h2>
-    <p class="lead">无需安装、无需联网，双击一个文件即可。</p>
+    <h2><span class="badge">🌍</span>① How to Open the World</h2>
+    <p class="lead">No installation, no internet — just double-click a file.</p>
     <ol class="steps">
-      <li data-n="1">打开项目里的 <code>web</code> 文件夹。</li>
-      <li data-n="2"><strong>双击 <code>web\world.html</code></strong>，浏览器（推荐 Chrome / Edge）会直接打开 3D 微观世界。</li>
-      <li data-n="3">进入后会自动放飞一只果蝇 🪰，右侧出现"上帝控制台"，可以开始玩啦。</li>
+      <li data-n="1">Open the <code>web</code> folder inside the project directory.</li>
+      <li data-n="2"><strong>Double-click <code>web\world.html</code></strong> and your browser (Chrome / Edge recommended) will open the 3D microscopic world directly.</li>
+      <li data-n="3">On entry, a fruit fly 🪰 is automatically released. The "God Console" appears on the right — you can start experimenting right away.</li>
     </ol>
     <div class="note">
-      📎 <strong>依赖文件（请保持 web\ 目录结构不变，含 vendor\ 子目录）</strong>：<br>
-      <code>vendor\three.min.js</code>（3D 引擎）、<code>snn_data.js</code>（训练好的 SNN 权重与拓扑）、<code>snn_runtime.js</code>（浏览器端脉冲推理引擎）、<code>scene_fx.js</code>（精修模型与四场景特效）、<code>brain_panel.js</code>（🧠 果蝇大脑面板）。<br>
-      缺少任何一个都会开天窗（只剩面板或空背景），请勿单独移动 <code>world.html</code> 或打散目录结构。
+      📎 <strong>Dependency files (please keep the web\ directory structure intact, including the vendor\ subdirectory)</strong>:<br>
+      <code>vendor\three.min.js</code> (3D engine), <code>snn_data.js</code> (trained SNN weights &amp; topology), <code>snn_runtime.js</code> (browser-side spiking inference engine), <code>scene_fx.js</code> (refined models &amp; four-scene effects), <code>brain_panel.js</code> (🧠 Fruit Fly Brain Panel).<br>
+      Missing any of these will break the experience (only a panel or blank background will remain). Do not move <code>world.html</code> on its own or scatter the directory structure.
     </div>
   </div>
 
-  <!-- ============ ② 界面介绍 ============ -->
+  <!-- ============ ② Interface Guide ============ -->
   <div class="card" id="ui">
-    <h2><span class="badge b2">🖥️</span>② 界面介绍</h2>
-    <p class="lead">屏幕上有三块半透明面板：左上「仪表盘 HUD」、右上「上帝控制台」、左下可开关的「🧠 果蝇大脑面板」。</p>
+    <h2><span class="badge b2">🖥️</span>② Interface Guide</h2>
+    <p class="lead">Three semi-transparent panels appear on screen: the top-left "Dashboard HUD", the top-right "God Console", and the toggleable bottom-left "🧠 Fruit Fly Brain Panel".</p>
 
-    <h3>📋 左上 HUD —— 果蝇随身仪表盘</h3>
+    <h3>📋 Top-Left HUD — Fruit Fly On-Board Dashboard</h3>
     <table>
-      <tr><th style="width:34%">读数</th><th>含义</th></tr>
-      <tr><td>场景 / 天气</td><td>当前场景名与天气（<b>晴</b> / <b>月夜</b> / <b>暴风雨</b> / <b>干风</b>）。</td></tr>
-      <tr><td>载体 / 控制</td><td>选中个体的"身体"（果蝇 / 无人机）与控制权状态（<b>仿生</b> 绿色 / <b>手动</b> 灰色）。</td></tr>
-      <tr><td>👁️ 视觉膨胀率</td><td>威胁逼近时画面变大的角速度（rad/s，大白话就是"东西冲脸变大得有多快"）——LPLC2（果蝇的视觉预警神经元）的输入线索，越接近碰撞越大。</td></tr>
-      <tr><td>🌬️ 风压 |u|</td><td>威胁气流压到身上的强度（相对值，没有单位）——JO-B/JO-C（果蝇触角基部的风/气流感受器）风觉线索。</td></tr>
-      <tr><td>⚡ GF 膜电位</td><td>巨纤维（Giant Fiber）膜电位（神经细胞的电压）峰值 <b>x.xx / 1.00</b>，旁边显示 <b>静息</b> 或 <b>放电！</b>；达到阈值发放就是"逃逸触发"（决策窗最后一步的放电不计触发，训练/浏览器两端同口径）。没有进行中的威胁时显示<b>未运行</b>。</td></tr>
-      <tr><td>逃逸潜伏期</td><td>从决策开始到 GF 首次放电的毫秒数（本模型典型值约 7–8.5 ms）；没放电/手动模式显示"—"，新威胁投放即清空上一回合残留。</td></tr>
-      <tr><td>累计（计分回合）</td><td>"计分回合" = 脱靶量（发射时设定的瞄准脱靶量——你站着不动时的最近距离）&lt; 威胁半径 + 0.55cm + 1.2cm 余量（真的可能撞上你；0.55cm 恒为果蝇半径，换体无人机的物理半径也按此计）的回合。回合 ｜ 躲避 ｜ 被撞 ｜ 虚警 四个计数，以及 <b>成功率</b>、<b>方向误差</b>（逃逸方向与"背离威胁"的夹角；真值取<strong>起跳时刻</strong>的威胁方向，只统计<strong>已起跳</strong>的计分回合，在威胁离场/超时时结算；起跳后仍被撞的回合不计方向误差——与「一键 100 次」的方向误差口径<strong>不同</strong>，见④）。0 样本时成功率/方向误差显示"—"。</td></tr>
+      <tr><th style="width:34%">Reading</th><th>Meaning</th></tr>
+      <tr><td>Scene / Weather</td><td>Current scene name and weather (<b>Sunny</b> / <b>Moonlit Night</b> / <b>Storm</b> / <b>Strong Wind</b>).</td></tr>
+      <tr><td>Body / Control</td><td>The selected entity's "body" (Fruit Fly / Drone) and control mode (<b>Bionic</b> green / <b>Manual</b> gray).</td></tr>
+      <tr><td>👁️ Visual Expansion Rate</td><td>Angular velocity at which the image enlarges as a threat approaches (rad/s — in plain terms, "how fast the looming object is growing") — input cue from LPLC2 (the fruit fly's visual early-warning neuron); the closer to collision, the higher the value.</td></tr>
+      <tr><td>🌬️ Wind Pressure |u|</td><td>Intensity of the threat's airflow pressing on the body (relative value, dimensionless) — wind/airflow sensory cue from JO-B/JO-C (the wind/airflow receptors at the base of the fruit fly's antennae).</td></tr>
+      <tr><td>⚡ GF Membrane Potential</td><td>Giant Fiber (GF) membrane potential (neural voltage) peak <b>x.xx / 1.00</b>, with <b>Resting</b> or <b>Firing!</b> displayed beside it; reaching the threshold and firing means "escape triggered" (firing in the final step of the decision window does not count as a trigger; training and browser metrics are aligned). When no active threat is present, it shows <b>Not Running</b>.</td></tr>
+      <tr><td>Escape Latency</td><td>Time in milliseconds from decision onset to first GF firing (typical value for this model: ~7–8.5 ms); shows "—" when no firing has occurred or in manual mode; cleared each time a new threat is spawned.</td></tr>
+      <tr><td>Cumulative (Scored Rounds)</td><td>A "scored round" = the miss distance (the offset set at launch — the closest approach if you stand still) is less than the threat radius + 0.55 cm + 1.2 cm margin (a real collision is possible; 0.55 cm is always the fruit fly's radius, and the drone's physical radius is calculated the same way). Four counts are tracked: rounds | dodges | hits | false alarms, along with <b>success rate</b> and <b>directional error</b> (the angle between the escape direction and "directly away from the threat"; the ground-truth threat direction is taken at <strong>jump-off time</strong>, only scored rounds with <strong>actual jumps</strong> are included, and it is finalized when the threat leaves or times out; rounds where the fly jumps but still gets hit are excluded from directional error — this metric <strong>differs</strong> from the "Run 100 Times" directional error, see ④). Shows "—" when there are 0 samples.</td></tr>
     </table>
 
-    <h3>🎛️ 右上 上帝控制台 —— 各按钮作用</h3>
+    <h3>🎛️ Top-Right God Console — Button Functions</h3>
     <table>
-      <tr><th style="width:30%">分组 / 按钮</th><th>作用</th></tr>
-      <tr><td>场景：白日草原 / 黑夜 / 暴风 / 大风</td><td>一键切换环境（当前场景按钮高亮），改变光照、风力、视觉线索强度与<strong>实质场景效果</strong>（云影 / 萤火虫月光 / 斜雨风线 / 气流粒子），详见 ④ 实验玩法。</td></tr>
-      <tr><td>🧠 大脑：🧠 果蝇大脑面板</td><td>开关左下的<strong>大脑面板</strong>（真实连接组回路图 + 决策窗脉冲传导 + GF 膜电位曲线），读法见下方专表。</td></tr>
-      <tr><td>载体：果蝇身体 / 无人机身体</td><td>给<strong>选中个体</strong>"换装"：同一个大脑，新的身体（动力学不同，见 ④）。</td></tr>
-      <tr><td>控制：🤖 仿生（点击切手动）</td><td>在 <strong>仿生 ↔ 手动</strong> 之间切换控制权；按钮文字随之变为「🛫 手动（点击切仿生）」。</td></tr>
-      <tr><td>个体：+ 放一只果蝇 / + 放一架无人机</td><td>向世界里新增一个个体（每个个体都有自己的一份 SNN 大脑）。</td></tr>
-      <tr><td>个体：− 移除选中</td><td>移除当前选中的个体。</td></tr>
-      <tr><td>个体：下拉选择框</td><td>切换"选中个体"（HUD 与视角都跟随它）。</td></tr>
-      <tr><td>威胁：<strong>脱靶量范围滑杆</strong>（精准 ↔ 宽松）</td><td>v5 新增。控制新投放威胁的<strong>瞄准脱靶量范围</strong>：<b>精准</b>（默认）=脱靶量 0–1.2cm，招招贴身、下下计分；拖到<b>宽松</b>=脱靶量 0–4.5cm，出现更多"擦边而过"的虚惊威胁。滑杆下方文字实时显示 精准 / 适中 / 宽松。</td></tr>
-      <tr><td>威胁：红色扑击球</td><td>从随机方位发射一颗红色威胁球砸向选中个体。</td></tr>
-      <tr><td>威胁：青蛙弹舌 🐸</td><td>地面快速突袭（起速下限最高：5–8 m/s，但上限低于红球）。</td></tr>
-      <tr><td>威胁：蜻蜓俯冲 🪽</td><td>高空俯冲突袭。</td></tr>
-      <tr><td>威胁：自动威胁 ×10</td><td>每 1.8 秒投放一个威胁、共 10 个，三种威胁轮换上阵。</td></tr>
-      <tr><td>实验：一键跑 100 次统计</td><td>后台快速生成 100 个随机威胁场景并结算，结果显示在按钮下方（见 ④）。</td></tr>
-      <tr><td>实验：清零统计</td><td>把所有个体的累计回合统计归零。</td></tr>
+      <tr><th style="width:30%">Group / Button</th><th>Function</th></tr>
+      <tr><td>Scene: Daylight Meadow / Dark Night / Storm / Strong Wind</td><td>Switch environment with one click (the current scene button is highlighted), changing lighting, wind, visual cue intensity, and <strong>scene-specific effects</strong> (cloud shadows / fireflies &amp; moonlight / slanting rain &amp; wind streaks / airflow particles). See ④ Experiments for details.</td></tr>
+      <tr><td>🧠 Brain: 🧠 Fruit Fly Brain Panel</td><td>Toggle the bottom-left <strong>brain panel</strong> (real connectome circuit diagram + decision-window spike propagation + GF membrane potential curve). Reading instructions are in the dedicated table below.</td></tr>
+      <tr><td>Body: Fly Body / Drone Body</td><td>Give the <strong>selected entity</strong> a "costume change" — same brain, new body (different dynamics; see ④).</td></tr>
+      <tr><td>Control: 🤖 Bionic (click to switch to Manual)</td><td>Toggle control between <strong>Bionic ↔ Manual</strong>; the button text updates to "🛫 Manual (click to switch to Bionic)".</td></tr>
+      <tr><td>Entity: + Add a Fruit Fly / + Add a Drone</td><td>Add a new entity to the world (each entity has its own copy of the SNN brain).</td></tr>
+      <tr><td>Entity: − Remove Selected</td><td>Remove the currently selected entity.</td></tr>
+      <tr><td>Entity: Dropdown Selector</td><td>Switch the "selected entity" (the HUD and camera follow it).</td></tr>
+      <tr><td>Threat: <strong>Miss Distance Range Slider</strong> (Precise ↔ Relaxed)</td><td>New in v5. Controls the <strong>miss distance range</strong> for newly spawned threats: <b>Precise</b> (default) = 0–1.2 cm (tight, nearly every one is a scored round); drag to <b>Relaxed</b> = 0–4.5 cm (more near-miss false alarms). The label below the slider updates in real time to show Precise / Medium / Relaxed.</td></tr>
+      <tr><td>Threat: Red Lunge Ball</td><td>Launch a red threat ball from a random direction toward the selected entity.</td></tr>
+      <tr><td>Threat: Frog Tongue Flick 🐸</td><td>Ground-based surprise attack (highest minimum launch speed: 5–8 m/s, but lower ceiling than the red ball).</td></tr>
+      <tr><td>Threat: Dragonfly Dive 🪽</td><td>High-altitude dive attack.</td></tr>
+      <tr><td>Threat: Auto Threats ×10</td><td>Spawn one threat every 1.8 seconds, 10 total, cycling through all three threat types.</td></tr>
+      <tr><td>Experiment: Run 100 Times Statistics</td><td>Quickly generate 100 random threat scenarios in the background and tabulate results, displayed below the button (see ④).</td></tr>
+      <tr><td>Experiment: Reset Statistics</td><td>Clear all cumulative round statistics for every entity.</td></tr>
     </table>
-    <h3>🧠 左下 果蝇大脑面板 —— 真实连接组实时放电（v5 新增，最值得看）</h3>
-    <p>点右上控制台「🧠 大脑 → 🧠 果蝇大脑面板」按钮开/关（按钮变绿=开；面板左上角也有「关闭」钮）。它画的是 <strong>训练用的真实连接组</strong>（FlyWire 拓扑，1871 神经元 / 45524 边）在<strong>决策窗（12 ms）</strong>内的逐毫秒放电重放：</p>
+    <h3>🧠 Bottom-Left Fruit Fly Brain Panel — Real Connectome Live Firing (New in v5, Must-See)</h3>
+    <p>Click "🧠 Brain → 🧠 Fruit Fly Brain Panel" in the top-right console to toggle on/off (button turns green = on; a "Close" button is also in the panel's top-left corner). It displays the <strong>real connectome used for training</strong> (FlyWire topology, 1,871 neurons / 45,524 edges) with <strong>millisecond-by-millisecond spike replay</strong> across a <strong>12 ms decision window</strong>:</p>
     <table>
-      <tr><th style="width:34%">面板元素</th><th>怎么读</th></tr>
-      <tr><td>👁️ <b>LPLC2 视觉 210</b> 点阵</td><td>复眼视觉预警神经元（210 个），<strong>按偏好方位角排序</strong>——威胁从哪个方向来，对应方位的点先亮。</td></tr>
-      <tr><td>🌬️ <b>JO 风觉 325</b> 点阵</td><td>触角基部风/气流感受器（325 个），按敏感轴方向排序，威胁气流压上来时相应方向点亮。</td></tr>
-      <tr><td>☁️ <b>中间神经元 1165</b>（抽样 128）</td><td>LPLC2/JO 与 GF 之间的中间回路（真实 1165 个，画得下抽样 128 个代表点）。</td></tr>
-      <tr><td>⚡ <b>GF ×2</b> 大圆点</td><td>巨纤维（Giant Fiber）——逃逸命令神经元，2 个。亮 = 本毫秒放电。</td></tr>
-      <tr><td>🎯 <b>下游 169</b> 点阵</td><td>GF 下游运动回路（169 个），把"逃"字变成身体动作的方向码。</td></tr>
-      <tr><td>流带 + 绿色数字</td><td>群与群之间的<strong>真实突触连接</strong>，数字=实际边数（如"LPLC2→GF 直连 127 条"、"中间→GF 535 条"）；有脉冲流过时带上跑绿色粒子（脉冲逐个点亮传导）。</td></tr>
-      <tr><td>📈 <b>GF 膜电位曲线</b></td><td>下方坐标图：横轴=决策窗 12 个毫秒步，纵轴=GF 膜电位（神经电压）；两条线=GF1（青）/GF2（紫），<strong>金色虚线 = Vth 阈值线（1.00）</strong>。<strong>曲线越线 = GF 放电 = ⚡逃逸触发</strong>（图上越线处直接标 ⚡）；整条线都在虚线下=静息不动。</td></tr>
-      <tr><td>顶部状态行</td><td>显示当前重放第几步（t = n/12 ms）、loom / 风压读数，以及「⚡ GF 放电！逃逸」或「静息」。无威胁/手动模式时显示"等待威胁决策…"。</td></tr>
+      <tr><th style="width:34%">Panel Element</th><th>How to Read It</th></tr>
+      <tr><td>👁️ <b>LPLC2 Visual 210</b> Dot Matrix</td><td>Compound-eye visual early-warning neurons (210 of them), <strong>sorted by preferred azimuth</strong> — whichever direction the threat comes from lights up the corresponding column first.</td></tr>
+      <tr><td>🌬️ <b>JO Wind 325</b> Dot Matrix</td><td>Airflow/wind receptors at the antenna base (325 of them), sorted by sensitive-axis direction; when threat airflow presses in, the corresponding direction lights up.</td></tr>
+      <tr><td>☁️ <b>Interneurons 1165</b> (128 sampled)</td><td>Intermediate circuits between LPLC2/JO and GF (1,165 total; 128 representative dots are drawn to fit).</td></tr>
+      <tr><td>⚡ <b>GF ×2</b> Large Dots</td><td>Giant Fibers — the escape command neurons, 2 of them. Bright = firing this millisecond.</td></tr>
+      <tr><td>🎯 <b>Downstream 169</b> Dot Matrix</td><td>GF downstream motor circuits (169 of them), converting the "escape" command into body-movement direction codes.</td></tr>
+      <tr><td>Flow Bands + Green Numbers</td><td><strong>Real synaptic connections</strong> between groups; the number = actual edge count (e.g., "LPLC2→GF direct 127", "Interneuron→GF 535"); when a spike passes through, green particles run along the band (spikes light up one by one).</td></tr>
+      <tr><td>📈 <b>GF Membrane Potential Curve</b></td><td>Bottom graph: horizontal axis = 12 ms steps of the decision window, vertical axis = GF membrane potential (neural voltage); two lines = GF1 (cyan) / GF2 (purple); <b>gold dashed line = Vth threshold (1.00)</b>. <b>Curve crosses the line = GF firing = ⚡ Escape Triggered</b> (⚡ is marked at the crossing point on the graph); the entire line staying below the dashed line = resting.</td></tr>
+      <tr><td>Top Status Row</td><td>Shows which replay step is playing (t = n/12 ms), loom / wind pressure readings, and either "⚡ GF Firing! Escape" or "Resting". With no threat / in manual mode, it displays "Awaiting threat decision…".</td></tr>
     </table>
-    <div class="tip">💡 面板只做<strong>只读旁路记录</strong>：它从 SNN 引擎"抄"每一步的放电与电位快照来画图，<strong>不参与也不改变任何数值计算</strong>（不打开时 SNN 计算路径逐位不变）。决策是约每 40ms 一次、每次一个 12ms 窗，面板按自己的节奏循环重放最近的窗，方便看清脉冲怎么从眼睛传到巨纤维。</div>
+    <div class="tip">💡 The panel is a <strong>read-only bypass recorder</strong>: it "copies" each step's firing and potential snapshots from the SNN engine for visualization, <strong>without participating in or altering any computation</strong> (when the panel is closed, the SNN calculation path is bit-identical). Decisions occur roughly every 40 ms, each covering a 12 ms window; the panel replays the latest window at its own pace, making it easy to see how spikes propagate from the eyes to the giant fiber.</div>
 
-    <div class="tip">💡 画面下方偶尔弹出的<b>小条提示</b>（toast）是事件播报；中央大字「⚡ 逃逸！」出现 = 本次 GF 放电、逃逸机动已启动。神经读数在手动模式、或没有正在进行的威胁时显示「— / 未运行」（此刻没有决策在进行），属正常现象。多威胁同时压来时，决策先应对<strong>最近的威胁</strong>（本世界的简化），统计仍按威胁逐个记账。</div>
+    <div class="tip">💡 The <b>small toast messages</b> that occasionally appear at the bottom of the screen are event announcements; when the large "⚡ Escape!" text appears at the center, it means the GF has fired and an escape maneuver has been initiated. Neural readings display "— / Not Running" in manual mode or when there is no active threat (no decision is in progress at that moment) — this is normal. When multiple threats arrive simultaneously, the decision responds to the <strong>nearest threat first</strong> (a simplification in this world); statistics still track threats individually.</div>
   </div>
 
-  <!-- ============ ③ 操作说明 ============ -->
+  <!-- ============ ③ Controls ============ -->
   <div class="card" id="keys">
-    <h2><span class="badge b3">🎮</span>③ 操作说明</h2>
+    <h2><span class="badge b3">🎮</span>③ Controls</h2>
     <table>
-      <tr><th style="width:34%">操作</th><th>效果</th></tr>
-      <tr><td>🖱️ <strong>滚轮</strong></td><td><strong>缩放视角</strong>（拉近 / 拉远跟随相机）。</td></tr>
-      <tr><td>🖱️ <strong>按住个体拖动</strong></td><td>把它<strong>放到新位置</strong>（松手即停）——躲成功它就待在原地，被击中会在随机地点复活。</td></tr>
-      <tr><td>🧠 <strong>点「🧠 果蝇大脑面板」按钮</strong>（v5 新增）</td><td>开 / 关左下<strong>大脑面板</strong>（真实连接组回路图 + 决策窗脉冲传导 + GF 膜电位曲线；面板内「关闭」钮同效）。开销为零：关闭时 SNN 计算路径逐位不变。</td></tr>
-      <tr><td>🎚️ <strong>拖「脱靶量范围」滑杆</strong>（v5 新增）</td><td>调新投放威胁的瞄准脱靶量范围：<strong>精准（默认，0–1.2cm）↔ 宽松（0–4.5cm）</strong>，标签实时显示 精准 / 适中 / 宽松。只影响之后新投的威胁。</td></tr>
-      <tr><td><kbd>W</kbd> / <kbd>↑</kbd> <kbd>S</kbd> / <kbd>↓</kbd> <kbd>A</kbd> / <kbd>←</kbd> <kbd>D</kbd> / <kbd>→</kbd></td><td><strong>手动模式下驾驶</strong>：前进 / 后退 / 左移 / 右移（两种身体手感不同）。</td></tr>
-      <tr><td>🤖 仿生模式（无威胁时）</td><td>个体会<strong>自动漫游巡飞</strong>（悠闲巡游的演示行为），不是失控；来威胁时由 SNN 决策。</td></tr>
-      <tr><td>切到 🛫 手动模式后</td><td><strong>SNN 绝不输出</strong>——手动模式下 SNN <strong>不参与控制</strong>（驾驶回路里完全不调用它；只有"一键跑 100 次"这类离线统计仍会运行推理），神经读数显示"— / 未运行"，绝不接管舵面。屏幕会提示"手动模式：SNN 不参与控制，绝不输出"。</td></tr>
-      <tr><td>⌨️ <strong>任何按键 = 飞手接管</strong></td><td>飞手一动手就是权威输入：即使正在 🤖 仿生模式，<strong>按下任意键（纯修饰键 Shift/Ctrl/Alt/Win/AltGraph 除外）会立即切到手动</strong>（作用于当前选中个体），屏幕提示"🛫 飞手按键 = 立即接管，SNN 输出权已切断"。这是无人机上的安全底线——<strong>飞手输入永远优先于仿生系统</strong>（本世界可放多个体，接管作用于选中个体；真机是一人一机，即全部）。</td></tr>
+      <tr><th style="width:34%">Action</th><th>Effect</th></tr>
+      <tr><td>🖱️ <strong>Scroll Wheel</strong></td><td><strong>Zoom in / out</strong> (adjust camera distance).</td></tr>
+      <tr><td>🖱️ <strong>Click and Drag an Entity</strong></td><td><strong>Move it to a new position</strong> (releasing the mouse stops it) — if it dodges successfully, it stays put; if hit, it respawns at a random location.</td></tr>
+      <tr><td>🧠 <strong>Click "🧠 Fruit Fly Brain Panel" Button</strong> (New in v5)</td><td>Toggle the bottom-left <strong>brain panel</strong> on / off (real connectome circuit + decision-window spike propagation + GF membrane potential curve; the "Close" button inside the panel does the same). Zero overhead: when closed, the SNN calculation path is bit-identical.</td></tr>
+      <tr><td>🎚️ <strong>Drag "Miss Distance Range" Slider</strong> (New in v5)</td><td>Adjust the miss distance range for newly spawned threats: <strong>Precise (default, 0–1.2 cm) ↔ Relaxed (0–4.5 cm)</strong>, with the label updating in real time. Only affects threats spawned after the adjustment.</td></tr>
+      <tr><td><kbd>W</kbd> / <kbd>↑</kbd> <kbd>S</kbd> / <kbd>↓</kbd> <kbd>A</kbd> / <kbd>←</kbd> <kbd>D</kbd> / <kbd>→</kbd></td><td><strong>Manual-mode piloting</strong>: forward / backward / strafe left / strafe right (feel differs between the two body types).</td></tr>
+      <tr><td>🤖 Bionic Mode (no threats)</td><td>The entity <strong>automatically roams and patrols</strong> (a leisurely demonstration behavior, not loss of control); when a threat arrives, the SNN takes over.</td></tr>
+      <tr><td>After Switching to 🛫 Manual Mode</td><td>The <strong>SNN never outputs</strong> — in manual mode the SNN <strong>does not participate in control</strong> (the piloting loop never calls it; only offline statistics like "Run 100 Times" still run inference). Neural readings display "— / Not Running" and the SNN never overrides the controls. The screen displays: "Manual mode: SNN does not participate in control, never outputs".</td></tr>
+      <tr><td>⌨️ <strong>Any Key = Pilot Override</strong></td><td>The pilot's input is authoritative: even in 🤖 Bionic mode, <strong>pressing any key (except pure modifier keys Shift/Ctrl/Alt/Win/AltGraph) immediately switches to Manual</strong> (applied to the currently selected entity). The screen shows: "🛫 Pilot key = instant takeover, SNN output severed". This is the safety baseline for drones — <strong>pilot input always takes priority over the bionic system</strong> (this world supports multiple entities, so takeover applies to the selected entity; in a real drone it is one pilot per aircraft, i.e., full control).</td></tr>
     </table>
     <div class="warn">
-      🎥 <strong>关于视角</strong>：本版本视角为<strong>第三人称自动跟随"选中个体"</strong>，只有滚轮缩放；<strong>暂不支持点击拖动旋转视角</strong>（但可以按住个体拖动换位置——拖的是它，不是镜头）。
+      🎥 <strong>About the camera</strong>: This version uses <strong>third-person auto-follow on the "selected entity"</strong>, with scroll-wheel zoom only; <strong>click-drag to rotate the camera is not supported</strong> (but you can click and drag an entity to reposition it — you are moving the entity, not the camera).
     </div>
   </div>
 
-  <!-- ============ ④ 实验玩法 ============ -->
+  <!-- ============ ④ Experiments ============ -->
   <div class="card" id="play">
-    <h2><span class="badge b4">🔬</span>④ 实验玩法（这里是验证台，不只是看风景）</h2>
-    <p class="lead">每一个按钮都对应实验报告里的一个实验变量——玩 = 做实验。</p>
+    <h2><span class="badge b4">🔬</span>④ Experiments (This Is a Verification Testbed, Not a Scenic Tour)</h2>
+    <p class="lead">Every button corresponds to an experimental variable in the report — playing = running experiments.</p>
 
-    <h3>🧍➡️🚁 换身体实验（对应实验矩阵 D：果蝇身体 vs 无人机身体）</h3>
-    <p>选中个体后点「果蝇身体 / 无人机身体」，<strong>同一个大脑，新的身体</strong>：</p>
+    <h3>🧍➡️🚁 Body-Swap Experiment (Experiment Matrix D: Fly Body vs. Drone Body)</h3>
+    <p>After selecting an entity, click "Fly Body / Drone Body" — <strong>same brain, new body</strong>:</p>
     <ul>
-      <li>🪰 <strong>果蝇身体</strong>：轻盈、爆发快，加速度和极速都大；</li>
-      <li>🚁 <strong>无人机身体</strong>：有惯性、加速度受限，反应"肉"一点。</li>
+      <li>🪰 <strong>Fly Body</strong>: Lightweight, explosive acceleration, high top speed;</li>
+      <li>🚁 <strong>Drone Body</strong>: Has inertia, limited acceleration, slightly "heavier" feel.</li>
     </ul>
-    <p>于是你可以直观看到：<strong>同一个逃逸决策，装在不同动力学的身体上，"怎么躲"的轨迹和手感会不同</strong>。诚实提醒（REPORT 第 3.4 节实测）：在突发威胁的短促窗口里，两种身体的<strong>成功率几乎持平</strong>（果蝇 0.698 vs 无人机 0.694，物理积分口径，见 REPORT 3.4）——差距不在神经决策，而在执行动力学；要真正"躲得开"，还需要更早的预警 + 更强的机动动力。这正是"仿生脑 + 无人机体"要回答的问题。</p>
+    <p>This lets you intuitively see: <strong>the same escape decision, housed in a body with different dynamics, produces different trajectories and handling</strong>. Honest caveat (REPORT Section 3.4): within the short burst windows of surprise threats, the two bodies' <strong>success rates are nearly identical</strong> (fly 0.698 vs. drone 0.694, physical integration metric — see REPORT 3.4) — the gap is not in neural decision-making but in execution dynamics; truly "dodging" requires earlier warning + greater maneuvering power. This is precisely what the "bionic brain + drone body" combination aims to address.</p>
 
-    <h3>🌦️ 场景切换（对应实验矩阵 B：环境；v5 起四场景为实质差异，不再是换色）</h3>
+    <h3>🌦️ Scene Switching (Experiment Matrix B: Environment; v5+ makes all four scenes substantively different, not just recolors)</h3>
     <div class="scene-strip">
-      <div class="scene-box"><div class="big">🌼</div><b>白日草原</b><small>晴 · 无风 · 视觉正常<br>草浪摇摆 + <b>云影</b>掠地漂移 + 花粉<br>= 基准（实验 B「晴」）</small></div>
-      <div class="scene-box"><div class="big">🌙</div><b>黑夜</b><small>昏暗 · 视觉线索大幅减弱<br><b>月亮 + 星空 + 萤火虫</b>闪烁漫游<br>= 弱视觉（实验 B「黑夜」）</small></div>
-      <div class="scene-box"><div class="big">🌧️</div><b>暴风</b><small>风力扰动吹动机体 · 草狂摆<br><b>斜雨雨幕 + 高速风线</b>（视觉略降；实验 B「大风」）</small></div>
-      <div class="scene-box"><div class="big">💨</div><b>大风</b><small>干风 · 草吹拂<br><b>气流粒子场</b>把风变成可见流线<br>额外彩蛋场景（无雨版风场）</small></div>
+      <div class="scene-box"><div class="big">🌼</div><b>Daylight Meadow</b><small>Sunny · Calm · Normal vision<br>Grass waves + <b>cloud shadows</b> drifting + pollen<br>= Baseline (Experiment B "Sunny")</small></div>
+      <div class="scene-box"><div class="big">🌙</div><b>Dark Night</b><small>Dim · Greatly reduced visual cues<br><b>Moon + starry sky + fireflies</b> flickering &amp; drifting<br>= Weak vision (Experiment B "Dark Night")</small></div>
+      <div class="scene-box"><div class="big">🌧️</div><b>Storm</b><small>Wind disturbs the body · Grass whips wildly<br><b>Slanting rain curtain + high-speed wind streaks</b> (vision slightly reduced; Experiment B "Strong Wind")</small></div>
+      <div class="scene-box"><div class="big">💨</div><b>Strong Wind</b><small>Dry wind · Grass sways<br><b>Airflow particle field</b> turns wind into visible streamlines<br>Bonus scene (wind without rain)</small></div>
     </div>
-    <p>黑夜可以体验<strong>弱视觉下的表现下滑</strong>（B 组弱视觉条件）。"融合 vs 纯视觉"的对照增益请看 REPORT 第 3.1 节（晴天即有方向增益：10.6° vs 18.2°），或用旧沙盒 <code>index.html</code> 的模态下拉粗看。</p>
+    <p>Dark Night lets you experience <strong>performance degradation under weak vision</strong> (Experiment B weak-vision condition). For the "Fusion vs. Pure Vision" comparison, see REPORT Section 3.1 (even on sunny days there is a directional improvement: 10.6° vs. 18.2°), or open the legacy sandbox <code>index.html</code> in the same directory for a rough modal dropdown comparison.</p>
 
-    <h3>🎯 威胁投放（与实验矩阵 C 相关：突袭速度）</h3>
-    <p>红色扑击球 / 青蛙弹舌 / 蜻蜓俯冲的突袭速度在<strong>约 3–9 m/s</strong> 内随机（本世界参数设定：球 3.5–9.0、蛙 5.0–8.0、蜓 3.0–8.0 m/s；没有低速档）。<strong>脱靶量范围由「精准 ↔ 宽松」滑杆控制（v5 新增，默认精准 0–1.2cm，即招招贴身、下下计分；拖到宽松则恢复 0–4.5cm 大范围，出现更多擦边虚惊）</strong>——有的真的会撞上（计分回合），有的只是虚惊（若果蝇对它起跳过，记 1 次"虚警"）。连点「自动威胁 ×10」可以高强度压测。严格的低/中/高速对照（实验矩阵 C）在 REPORT 第 3.3 节（由评估脚本生成）。</p>
+    <h3>🎯 Threat Spawning (Related to Experiment Matrix C: Surprise Attack Speed)</h3>
+    <p>Red Lunge Ball / Frog Tongue Flick / Dragonfly Dive attack speeds are randomized within <strong>approximately 3–9 m/s</strong> (this world's parameters: ball 3.5–9.0, frog 5.0–8.0, dragonfly 3.0–8.0 m/s; no low-speed tier). <strong>The miss distance range is controlled by the "Precise ↔ Relaxed" slider (New in v5; default Precise 0–1.2 cm, meaning tight and nearly every one scores; dragging to Relaxed restores 0–4.5 cm, producing more near-miss false alarms)</strong> — some threats will actually hit (scored rounds), some are just near-misses (if the fly jumped at them, it counts as 1 "false alarm"). Spamming "Auto Threats ×10" lets you stress-test at high intensity. Strict low/medium/high-speed comparisons (Experiment Matrix C) are in REPORT Section 3.3 (generated by evaluation scripts).</p>
 
-    <h3>📊 一键跑 100 次统计（与训练端指标同算法）</h3>
-    <p>点「一键跑 100 次统计」，程序在后台生成 100 个随机威胁场景并结算，输出四项：</p>
-    <p style="text-align:center"><code>【场景名】100 场景：触发 x% 　成功 y% 　方向 z° 　潜伏 w ms</code></p>
+    <h3>📊 Run 100 Times Statistics (Same Algorithm as Training Metrics)</h3>
+    <p>Click "Run 100 Times Statistics" and the program generates 100 random threat scenarios in the background, outputting four metrics:</p>
+    <p style="text-align:center"><code>【Scene Name】100 Scenarios: Trigger x%  Success y%  Direction z°  Latency w ms</code></p>
     <ul>
-      <li><strong>触发准确率</strong>：判断"有没有威胁、该不该跳"答对的比例（以 GF 是否放电为判据）；</li>
-      <li><strong>避障成功率</strong>：构成触发条件的威胁（正在接近、碰撞时间 &lt; 50ms、距离 &lt; 25cm，与脱靶量无关）中「GF 放电且方向误差 &lt; 30°」的占比（与训练脚本 <code>train_snn.py</code> 的评估算法一致）；</li>
-      <li><strong>方向误差</strong>：逃逸方向与"背离威胁"的平均夹角（对全部有效威胁样本取平均，含未放电回合；与 HUD 的方向误差口径不同）；</li>
-      <li><strong>GF 潜伏期</strong>：上述威胁里 <strong>GF 真放电的回合</strong>，从决策到首次放电的平均毫秒数（没放电的回合不计入）。</li>
+      <li><strong>Trigger Accuracy</strong>: The proportion of correct judgments on "is there a threat, should it jump" (based on whether the GF fires);</li>
+      <li><strong>Obstacle Avoidance Success Rate</strong>: Among threats that meet trigger conditions (approaching, time-to-collision &lt; 50 ms, distance &lt; 25 cm, regardless of miss distance), the proportion where "GF fires and directional error &lt; 30°" (aligned with the evaluation algorithm in <code>train_snn.py</code>);</li>
+      <li><strong>Directional Error</strong>: The average angle between the escape direction and "directly away from the threat" (averaged over all valid threat samples, including non-firing rounds — this metric differs from the HUD's directional error);</li>
+      <li><strong>GF Latency</strong>: Among the above threats, for <strong>rounds where the GF actually fires</strong>, the average milliseconds from decision onset to first firing (non-firing rounds are excluded).</li>
     </ul>
-    <div class="tip">💡 统计用的是<strong>当前场景</strong>的视觉增益：切到「黑夜」再跑 100 次，就能看到弱视觉下的表现下滑（B 组的弱视觉条件可一键体验）。注意：<strong>「大风」的环境风干扰机制在这个简化统计里未建模</strong>（世界里的大风只吹动机体、不进统计），大风组的严格数据以 REPORT 第 3.2 节为准。</div>
+    <div class="tip">💡 The statistics use the <strong>current scene's</strong> visual gain: switch to "Dark Night" and run 100 times to see performance degradation under weak vision (the Experiment B weak-vision condition, one click away). Note: <strong>the wind-disturbance mechanism of "Strong Wind" is not modeled in this simplified statistics</strong> (in-world Strong Wind only blows the body; it does not enter the statistics); for rigorous Strong Wind data, refer to REPORT Section 3.2.</div>
 
-    <h3>✅ 数值验收看这里（B 类验收指引）</h3>
-    <p>测试条件：<strong>草原（晴）场景 + 融合模式（默认）</strong>——切到黑夜会真实变差；切到大风只体现"视觉略降 + 机体吹偏"（3D 世界未把环境风算进风觉线索，复现不出 REPORT 3.2 的退化幅度），都别误判为不合格。合格线的<strong>正式口径</strong>是 REPORT 第 2 节的 1200 条固定验证集；世界内的「一键 100 次」是体验性复核，判定规则见下表下方小贴士。</p>
+    <h3>✅ Numerical Acceptance — Start Here (Category B Acceptance)</h3>
+    <p>Test conditions: <strong>Daylight Meadow (Sunny) scene + Fusion mode (default)</strong> — switching to Dark Night will genuinely worsen results; switching to Strong Wind only reflects "slightly reduced vision + body blown off course" (the 3D world does not incorporate environmental wind into the wind sensory cue, so it cannot reproduce the degradation magnitude from REPORT 3.2) — neither should be mistaken for failure. The <strong>official acceptance benchmark</strong> is the 1,200-sample fixed validation set in REPORT Section 2; the in-world "Run 100 Times" is an experiential spot-check — the judgment rule is in the note below the table.</p>
     <table>
-      <tr><th>指标</th><th>合格线</th><th>权威数据出处</th></tr>
-      <tr><td>触发准确率</td><td>≥ 75%</td><td>REPORT.md 第 2 节主表（融合 0.799）</td></tr>
-      <tr><td>避障成功率</td><td>≥ 85%</td><td>REPORT.md 第 2 节主表（融合 0.903）</td></tr>
-      <tr><td>方向误差</td><td>≤ 20°</td><td>REPORT.md 第 2 节主表（融合 10.7°）</td></tr>
-      <tr><td>GF 潜伏期</td><td>≤ 10 ms</td><td>REPORT.md 第 2 节主表（7.65 ms）</td></tr>
-      <tr><td>融合 &gt; 纯视觉</td><td>方向误差显著更低</td><td>REPORT.md 第 3.1 节 A 组表（10.6° vs 18.2°）</td></tr>
+      <tr><th>Metric</th><th>Acceptance Threshold</th><th>Authoritative Source</th></tr>
+      <tr><td>Trigger Accuracy</td><td>≥ 75%</td><td>REPORT.md Section 2 main table (Fusion 0.799)</td></tr>
+      <tr><td>Obstacle Avoidance Success Rate</td><td>≥ 85%</td><td>REPORT.md Section 2 main table (Fusion 0.903)</td></tr>
+      <tr><td>Directional Error</td><td>≤ 20°</td><td>REPORT.md Section 2 main table (Fusion 10.7°)</td></tr>
+      <tr><td>GF Latency</td><td>≤ 10 ms</td><td>REPORT.md Section 2 main table (7.65 ms)</td></tr>
+      <tr><td>Fusion &gt; Pure Vision</td><td>Directional error significantly lower</td><td>REPORT.md Section 3.1 Group A table (10.6° vs. 18.2°)</td></tr>
     </table>
-    <p>小贴士：① 世界里的「一键 100 次」只有 100 个样本，<strong>抖动比你想的大</strong>（可复现实测：<code>web\jitter_sim.js</code> 固定种子模拟 40 轮 × 100 场景——触发 70%–85%、成功 76.3%–96.0%、方向 9.0°–12.6°、潜伏 7.3–8.3 ms；完整存档 <code>web\jitter_sim_log.md</code>，固定种子下逐位可复现；复跑会重写该存档文件、但内容逐位相同，可放心核对）——合格判定请<strong>连跑 3 次取中位数，中位数达标即合格；单跑低于线不判死；若 3 次中位数仍不达标，再连跑 3 次复核后判定</strong>（复核的判法相同：同样连跑 3 次取中位数、以<strong>复核中位数</strong>为最终判据，两次中位数均不达标才判不合格；同脚本 200 组"3 次中位数"模拟实测：一次全项达标率 92.0%——触发/成功率两条线贴着抖动带下沿，压线属正常；上表合格线对应 REPORT 第 2 节 1200 条正式口径，世界内 100 次只作体验复核）；② "融合 vs 纯视觉"的严格对照看 REPORT 第 3.1 节（评估器 5 种子 × 200 样本生成），想在浏览器里粗看可以打开同目录的旧沙盒 <code>index.html</code>（有纯视觉 / 纯风觉下拉）。</p>
+    <p>Tips: ① The in-world "Run 100 Times" uses only 100 samples, so <strong>variance is larger than you might expect</strong> (reproducible test: <code>web\jitter_sim.js</code> runs 40 rounds × 100 scenarios with a fixed seed — trigger 70%–85%, success 76.3%–96.0%, direction 9.0°–12.6°, latency 7.3–8.3 ms; full log at <code>web\jitter_sim_log.md</code>, bit-reproducible under the fixed seed; re-runs overwrite the log file but the content is bit-identical, safe to cross-check) — for acceptance, <strong>run 3 consecutive times and take the median; if the median passes, it is accepted; a single run below the threshold is not a failure; if the median of 3 still fails, run 3 more times for a re-check and judge based on that</strong> (the re-check uses the same method: 3 runs, take the median, and the <strong>re-check median</strong> is the final verdict; both medians must fail for it to be a definitive failure; simulation of 200 groups of "3-run medians" with the same script: a single full-item pass rate of 92.0% — the trigger and success rate lines sit right at the bottom edge of the jitter band, so being borderline is normal; the table thresholds correspond to the official 1,200-sample benchmark in REPORT Section 2, and the in-world 100 runs are for experiential spot-checking only); ② for the strict "Fusion vs. Pure Vision" comparison, see REPORT Section 3.1 (generated by the evaluator with 5 seeds × 200 samples); for a rough in-browser check, open the legacy sandbox <code>index.html</code> in the same directory (which has Pure Vision / Pure Wind dropdowns).</p>
 
-    <h3>✅ 语义 / 观感 / 科学验收看这里（A / C / D 类）</h3>
-    <p><strong>A 类 · 语义</strong>（操作 → 预期现象，人眼确认）：</p>
+    <h3>✅ Semantic / Visual / Scientific Acceptance — Start Here (Categories A / C / D)</h3>
+    <p><strong>Category A · Semantic</strong> (Action → Expected Phenomenon, visual confirmation):</p>
     <ul>
-      <li>① 不投威胁、静置 1 分钟 → 只见自动漫游，<strong>不应出现</strong>「⚡ 逃逸！」大字，HUD"虚警"计数应为 0；</li>
-      <li>② 投一个「红色扑击球」→ 只有威胁逼近时才出现「⚡ 逃逸！」，且个体是<strong>背向威胁</strong>飞走（HUD"方向误差"以小角度为佳，约 0°–20°）；</li>
-      <li>③ 仿生模式中按一下 W 键 → 立刻出现「🛫 飞手按键 = 立即接管，SNN 输出权已切断」，模式切成"手动"，逃逸推力立即停。</li>
+      <li>① Spawn no threats, idle for 1 minute → only automatic roaming is visible; <strong>no</strong> "⚡ Escape!" text should appear; HUD "False Alarm" count should be 0;</li>
+      <li>② Spawn one "Red Lunge Ball" → "⚡ Escape!" appears only when the threat approaches, and the entity flies <strong>away from the threat</strong> (HUD "Directional Error" should be small, approximately 0°–20°);</li>
+      <li>③ In Bionic mode, press the W key once → immediately shows "🛫 Pilot key = instant takeover, SNN output severed", mode switches to "Manual", and escape thrust stops immediately.</li>
     </ul>
-    <p><strong>C 类 · 观感</strong>（纯人眼，无标准答案）：① 卡通画风整体观感（v5：果蝇红黑复眼/六足关节/翅脉翅振/胸腹分节、无人机桨叶云台指示灯、阴影贴图光影）；② 草叶随风摇摆 + 白日云影掠地、大风天草浪更明显；③ 黑夜月光 + 星空 + 萤火虫闪烁；④ 暴风斜雨风线、大风气流粒子场观感；⑤ 🧠 大脑面板脉冲传导与 GF 膜电位曲线的可读性、「⚡ 逃逸！」大字与底部提示的辨识度。</p>
-    <p><strong>D 类 · 科学</strong>（结论 ↔ 证据对照：打开 <code>REPORT.md</code> 逐条核对）：</p>
+    <p><strong>Category C · Visual</strong> (Purely subjective, no single correct answer): ① Overall cartoon art-style impression (v5: fruit fly compound eyes / leg joints / wing veins &amp; wingbeat / thorax-abdomen segmentation; drone propeller gimbal indicator lights; shadow-mapped lighting); ② Grass swaying in the wind + daylight cloud shadows, more pronounced grass waves on windy days; ③ Dark night moonlight + starry sky + flickering fireflies; ④ Storm slanting rain &amp; wind streaks, Strong Wind airflow particle field aesthetics; ⑤ Readability of the 🧠 Brain Panel spike propagation and GF membrane potential curve, and the legibility of the "⚡ Escape!" text and bottom toast messages.</p>
+    <p><strong>Category D · Scientific</strong> (Claim ↔ Evidence cross-check: open <code>REPORT.md</code> and verify each item):</p>
     <table>
-      <thead><tr><th>结论（REPORT 第 7 节）</th><th>证据出处</th></tr></thead>
+      <thead><tr><th>Claim (REPORT Section 7)</th><th>Evidence Source</th></tr></thead>
       <tbody>
-        <tr><td>结论 1：融合模式 0.799 / 0.903 / 10.7° / 7.65ms，B 类阈值全达标</td><td>REPORT 第 2 节主表（源自 metrics.json）</td></tr>
-        <tr><td>结论 2：融合优于纯视觉（方向 10.6° vs 18.2°）</td><td>REPORT 3.1（源自 web\results.json）</td></tr>
-        <tr><td>结论 3：机动救回率小（救回率 +1.5 / +1.0 个百分点；净增益约 +1.3 / +1.0 个百分点；救回事件仅 8/529 与 5/529，低计数——如实无夸大）</td><td>REPORT 3.4（注意方向口径 ≠ 物理积分口径）</td></tr>
-        <tr><td>结论 4：三条科学限定（合成数据 / 单只雌蝇 / 结论范围）</td><td>REPORT 摘要与第 4 节局限（共 9 条）</td></tr>
+        <tr><td>Claim 1: Fusion mode 0.799 / 0.903 / 10.7° / 7.65 ms — all Category B thresholds met</td><td>REPORT Section 2 main table (from metrics.json)</td></tr>
+        <tr><td>Claim 2: Fusion outperforms Pure Vision (direction 10.6° vs. 18.2°)</td><td>REPORT 3.1 (from web\results.json)</td></tr>
+        <tr><td>Claim 3: Maneuver recovery rate is small (recovery rate +1.5 / +1.0 percentage points; net gain ~+1.3 / +1.0 pp; recovery events only 8/529 and 5/529, low counts — reported honestly, not overstated)</td><td>REPORT 3.4 (note: directional metric ≠ physical integration metric)</td></tr>
+        <tr><td>Claim 4: Three scientific caveats (synthetic data / single female fly / scope of conclusions)</td><td>REPORT summary and Section 4 limitations (9 items total)</td></tr>
       </tbody>
     </table>
   </div>
 
-  <!-- ============ ⑤ 常见问题 ============ -->
+  <!-- ============ ⑤ FAQ ============ -->
   <div class="card" id="faq">
-    <h2><span class="badge b5">❓</span>⑤ 常见问题</h2>
+    <h2><span class="badge b5">❓</span>⑤ Frequently Asked Questions</h2>
 
     <div class="qa">
-      <div class="q">Q1：为什么"纯视觉模式"下风压不生效？是 bug 吗？</div>
-      <div class="a">A：不是 bug，是<strong>对照实验故意关闭</strong>的。"纯视觉"是模态对照组：为了量化"只靠视觉"能做到多少，会把风觉输入通道的脉冲<strong>整体关掉</strong>，所以风压读数不参与决策。反过来，"纯风觉"（<code>wind_only</code>）是把<strong>视觉</strong>通道的脉冲整体关掉。3D 世界（<code>world.html</code>）默认是<strong>融合模式</strong>，模态对照在训练 / 评估端进行；想在浏览器里粗看模态差异，可打开同目录的旧沙盒 <code>index.html</code>（有纯视觉 / 纯风觉下拉）。</div>
+      <div class="q">Q1: Why doesn't wind pressure take effect in "Pure Vision" mode? Is it a bug?</div>
+      <div class="a">A: Not a bug — it is <strong>deliberately disabled for the controlled experiment</strong>. "Pure Vision" is a modality control condition: to quantify how much vision alone can achieve, the wind sensory input channel is <strong>completely shut off</strong>, so wind pressure readings do not participate in decisions. Conversely, "Pure Wind" (<code>wind_only</code>) shuts off the <strong>vision</strong> channel entirely. The 3D world (<code>world.html</code>) defaults to <strong>Fusion mode</strong>; modality comparisons are done at training / evaluation time. For a rough in-browser modal comparison, open the legacy sandbox <code>index.html</code> in the same directory (it has Pure Vision / Pure Wind dropdowns).</div>
     </div>
 
     <div class="qa">
-      <div class="q">Q2：成功率是怎么算的？</div>
-      <div class="a">A：注意这里有<strong>三种口径，别混用</strong>：① <strong>屏幕累计的"成功率"</strong>（左上 HUD）＝<strong>计分回合</strong>（脱靶量 &lt; 威胁半径 + 0.55cm + 1.2cm 余量，即"真的可能撞上你"）中「起跳逃逸且最终没被撞」的占比，<strong>不检查方向角</strong>；② <strong>「一键 100 次」和实验报告的"避障成功率"</strong>＝"构成触发条件的威胁"（正在接近、碰撞时间 &lt; 50ms、距离 &lt; 25cm，与脱靶量无关）中「GF 放电且逃逸方向误差 &lt; 30°」的占比；③ 实验报告 D 组"换体实验"用的是<strong>物理积分口径</strong>（把双方运动逐毫秒真结算，安全 = 最近距离 &gt; 半径和，见 REPORT 3.4），数值与②不同、不可混用。<strong>虚警单列</strong>：够不上计分线（脱靶量 ≥ 威胁半径 + 0.55cm + 1.2cm 余量）的威胁却起跳了，单独计进"虚警"计数，不进成功率。（边界：够不上计分线的威胁即使真的撞上你，本世界也不记"被撞"、不会"结束这一世"；但若你对它起跳过，照常计 1 次"虚警"。）</div>
+      <div class="q">Q2: How is the success rate calculated?</div>
+      <div class="a">A: Be careful — there are <strong>three different metrics; do not mix them up</strong>: ① <strong>On-screen cumulative "success rate"</strong> (top-left HUD) = among <strong>scored rounds</strong> (miss distance &lt; threat radius + 0.55 cm + 1.2 cm margin, meaning "a real collision is possible"), the proportion where "the entity jumped and was not ultimately hit" — <strong>does not check directional angle</strong>; ② <strong>"Run 100 Times" and report "Obstacle Avoidance Success Rate"</strong> = among "threats meeting trigger conditions" (approaching, time-to-collision &lt; 50 ms, distance &lt; 25 cm, regardless of miss distance), the proportion where "GF fires and escape directional error &lt; 30°"; ③ The report's Category D "Body-Swap Experiment" uses a <strong>physical integration metric</strong> (both bodies' motion is simulated millisecond-by-millisecond, safe = minimum distance &gt; sum of radii — see REPORT 3.4). These numbers are not the same and must not be mixed. <strong>False alarms are counted separately</strong>: threats that fail to meet the scoring threshold (miss distance ≥ threat radius + 0.55 cm + 1.2 cm margin) but still triggered a jump are counted as "false alarms" and do not enter the success rate. (Edge case: threats that miss the scoring threshold will not "end your run" even if they physically hit you in this world; but if you jumped at them, 1 "false alarm" is still recorded.)</div>
     </div>
 
     <div class="qa">
-      <div class="q">Q3：果蝇死了会怎样？要不要重新训练？</div>
-      <div class="a">A：被命中只是"这一世结束了"，会自动<strong>复活 = 出厂重置</strong>（位置、速度复位）；<strong>本能权重仍在</strong>（SNN 是固定拓扑 + 训练好的权重），完全不需要重新训练。（边界：够不上计分线的威胁撞上你时不会"结束这一世"，见 Q2。）</div>
+      <div class="q">Q3: What happens when the fruit fly is killed? Do I need to retrain?</div>
+      <div class="a">A: Being hit simply means "that life is over" — it automatically <strong>respawns = factory reset</strong> (position and velocity are reset); <strong>the instinctual weights remain intact</strong> (the SNN is a fixed topology + trained weights), so retraining is completely unnecessary. (Edge case: threats that miss the scoring threshold won't "end your run" even if they hit you — see Q2.)</div>
     </div>
 
     <div class="qa">
-      <div class="q">Q4：能拖动鼠标旋转视角吗？</div>
-      <div class="a">A：当前版本视角自动跟随选中个体（第三人称），<strong>只有滚轮缩放</strong>；拖动旋转暂未实现（按住个体拖动换位置是另一个功能，已支持）。</div>
+      <div class="q">Q4: Can I drag the mouse to rotate the camera?</div>
+      <div class="a">A: The current version auto-follows the selected entity (third-person), with <strong>scroll-wheel zoom only</strong>; click-drag rotation is not yet implemented (clicking and dragging an entity to reposition it is a separate, already-supported feature).</div>
     </div>
 
     <div class="qa">
-      <div class="q">Q5（v5 新增）：🧠 大脑面板怎么读？那些点亮来亮去的是什么？</div>
-      <div class="a">A：面板画的是<strong>真实连接组</strong>（1871 神经元 / 45524 边）在一次决策窗（12 毫秒）里的逐毫秒放电重放。<strong>点阵</strong>：每个点=一个神经元，亮=这毫秒放电——左上 <b>LPLC2 视觉 210</b>（按偏好方位排序，威胁方位对应列先亮）、左下 <b>JO 风觉 325</b>、中间 <b>中间神经元 1165</b>（抽样 128 显示）、中右 <b>GF ×2</b>、右侧 <b>下游 169</b>；<strong>流带</strong>上的绿色粒子=脉冲在群间传导（数字是真实突触边数）。<strong>下方曲线</strong>：横轴 12 个毫秒步，纵轴 GF 膜电位，两条线=两个 GF，<b>金色虚线是 Vth 阈值（1.00）；曲线越线 = GF 放电 = ⚡逃逸触发</b>（越线处图上直接标 ⚡），全程压在虚线下=静息。面板只是"旁路抄表"，不改变 SNN 任何数值（关掉后计算路径逐位不变）。</div>
+      <div class="q">Q5 (New in v5): How do I read the 🧠 Brain Panel? What are those blinking dots?</div>
+      <div class="a">A: The panel displays the <strong>real connectome</strong> (1,871 neurons / 45,524 edges) with millisecond-by-millisecond spike replay across a single 12 ms decision window. <strong>Dot matrix</strong>: each dot = one neuron, bright = firing this millisecond — top-left <b>LPLC2 Visual 210</b> (sorted by preferred azimuth; the column matching the threat direction lights up first), bottom-left <b>JO Wind 325</b>, center <b>Interneurons 1165</b> (128 sampled for display), center-right <b>GF ×2</b>, right <b>Downstream 169</b>. <strong>Flow bands</strong> with green particles = spikes propagating between groups (numbers are real synaptic edge counts). <strong>Bottom curve</strong>: horizontal axis = 12 ms steps, vertical axis = GF membrane potential, two lines = two GFs, <b>gold dashed line = Vth threshold (1.00); curve crosses the line = GF firing = ⚡ Escape Triggered</b> (⚡ is marked at the crossing), entire line below dashed = resting. The panel is just a "bypass meter" — it does not change any SNN values (closing it leaves the calculation path bit-identical).</div>
     </div>
 
     <div class="qa">
-      <div class="q">Q6（v5 新增）：「脱靶量范围」滑杆（精准 ↔ 宽松）是干嘛的？</div>
-      <div class="a">A：它控制<strong>新投放威胁的瞄准脱靶量范围</strong>（发射时你站着不动、威胁与你的最近距离）。<b>精准</b>（默认）=0–1.2cm：招招贴身，几乎每个都是"计分回合"，适合压测逃逸；拖到<b>宽松</b>=0–4.5cm：更多"擦边而过"的虚惊（若果蝇对虚惊起跳会计"虚警"）。它只影响之后新投的威胁，不影响已在飞的。滑杆改的是<strong>攻击方式</strong>，不改大脑数值——SNN、评估口径均不变。</div>
+      <div class="q">Q6 (New in v5): What does the "Miss Distance Range" slider (Precise ↔ Relaxed) do?</div>
+      <div class="a">A: It controls the <strong>miss distance range for newly spawned threats</strong> (how far off-target the threat is when launched). <b>Precise</b> (default) = 0–1.2 cm: nearly every threat is a scored round, ideal for stress-testing escape behavior. Dragging to <b>Relaxed</b> = 0–4.5 cm: more "near-miss" false alarms (if the fly jumps at a false alarm, it counts as a "false alarm"). It only affects threats spawned after the adjustment, not those already in flight. The slider changes the <strong>attack method</strong>, not brain values — the SNN and evaluation metrics remain unchanged.</div>
     </div>
 
     <div class="qa">
-      <div class="q">Q7（v5 新增）：以前说"场景只是换色"，现在呢？</div>
-      <div class="a">A：v5 起四场景是<strong>实质差异</strong>：<b>白日草原</b>=草浪 + 云影掠地 + 花粉；<b>黑夜</b>=月亮 + 星空 + 140 只萤火虫闪烁漫游（冷色月光）；<b>暴风</b>=700 段斜雨雨幕 + 高速风线 + 草狂摆 + 机体被风吹偏；<b>大风</b>=520 个气流粒子沿流场流动（把"风"变成看得见的流线）。光照也分色温（日暖月冷）并带阴影贴图。注意场景仍按实验矩阵 B 的口径影响视觉增益（晴 1.0 / 黑夜 0.3 / 暴风 0.85），玩统计时切场景=换实验条件。</div>
+      <div class="q">Q7 (New in v5): Previously it said "scenes are just recolors" — has that changed?</div>
+      <div class="a">A: As of v5, the four scenes have <strong>substantive differences</strong>: <b>Daylight Meadow</b> = grass waves + cloud shadows + pollen; <b>Dark Night</b> = moon + starry sky + 140 fireflies flickering and drifting (cool-toned moonlight); <b>Storm</b> = 700 slanting rain segments + high-speed wind streaks + wildly whipped grass + body blown off course by wind; <b>Strong Wind</b> = 520 airflow particles following the flow field (turning "wind" into visible streamlines). Lighting also differs by color temperature (warm daylight vs. cool moonlight) with shadow maps. Note that scenes still affect visual gain per Experiment Matrix B standards (Sunny 1.0 / Dark Night 0.3 / Storm 0.85), so switching scenes when running statistics = changing experimental conditions.</div>
     </div>
   </div>
 
-  <!-- ============ ⑥ 科学须知 ============ -->
+  <!-- ============ ⑥ Scientific Notes ============ -->
   <div class="card" id="science">
-    <h2><span class="badge b6">📜</span>⑥ 科学须知（诚实声明）</h2>
-    <p class="lead">本世界是科研验证台，不是游戏产品。以下局限与《REPORT.md》第 4 节一致（此处引用第 1、2、5 条）：</p>
+    <h2><span class="badge b6">📜</span>⑥ Scientific Notes (Honest Disclaimers)</h2>
+    <p class="lead">This world is a scientific verification testbed, not a game product. The following limitations are consistent with Section 4 of REPORT.md (items 1, 2, and 5 are quoted here):</p>
     <div class="warn">
-      <strong>1.</strong> 训练数据是<strong>合成线索</strong>（物理公式生成），非电生理 / 行为学实测；<strong>结论只在该控制任务成立</strong>。<br><br>
-      <strong>2.</strong> 连接组来自<strong>单只雌性成蝇</strong>；突触数是解剖连接强度代理，<strong>不是生理权重</strong>。<br><br>
-      <strong>5.</strong> 果蝇为<strong>"纯本能"</strong>：无记忆、无在线学习（为保证可复现性，故意不做在线可塑）。
+      <strong>1.</strong> Training data is <strong>synthetic cues</strong> (generated from physics formulas), not electrophysiological or behavioral measurements; <strong>conclusions only hold for this specific control task</strong>.<br><br>
+      <strong>2.</strong> The connectome comes from a <strong>single female adult fly</strong>; synaptic counts are anatomical connectivity proxies, <strong>not physiological weights</strong>.<br><br>
+      <strong>5.</strong> The fruit fly is <strong>"pure instinct"</strong>: no memory, no online learning (intentionally no online plasticity, to ensure reproducibility).
     </div>
-    <p>完整局限清单（含纯风觉模态偏弱、人工语义验收经验等）请见项目根目录 <code>REPORT.md</code> 第 4 节；训练管线与本地运行环境见项目根目录 <code>README.md</code>。</p>
+    <p>For the complete list of limitations (including weak pure-wind modality, manual semantic acceptance experience, etc.), see Section 4 of <code>REPORT.md</code> in the project root; training pipeline and local runtime environment are documented in <code>README.md</code> in the project root.</p>
   </div>
 
-  <footer>🪰 果蝇 · 微观世界 —— 视-风双模态威胁逃逸 SNN 的 3D 验证台 + 演示橱窗<br>祝实验愉快，玩得像个科学家！✨</footer>
+  <footer>🪰 Fruit Fly · Microscopic World — A 3D Verification Testbed + Showcase for Vision-Wind Dual-Modal Threat Escape SNN<br>Happy experimenting — think like a scientist! ✨</footer>
 </div>
 </body>
 </html>

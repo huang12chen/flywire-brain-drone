@@ -1,86 +1,86 @@
-# 无人机模拟版·详细执行规格书（agent 照此施工，勿自创）
+# Drone Simulation Version — Detailed Execution Specification (agents follow this, do not improvise)
 
-> 项目根：<项目根>
-> 铁律：①SNN 数值不动（web\results.json SHA256=0E1339A088EF3B5820DCA342B989249403BE41D5A3F7EDB9DDB1D1A91C217E9E、jitter_sim_log.md=5C66B3D05A92F17961EC9EFC7F8406BFA6117CB04F5F47260F544AB52B8072AE）②飞手非修饰键接管最高优先级（Shift/Ctrl/Alt/Meta/AltGraph 豁免）③file:// 双击可用：零 fetch/零 ES module/零构建，three.js 用 web\vendor\three.min.js ④坐标映射 (x,z,y) 不变 ⑤方向误差口径=起跳时刻 −r̂ 不变。
+> Project root: <project root>
+> Iron rules: ①SNN values unchanged (web\results.json SHA256=0E1339A088EF3B5820DCA342B989249403BE41D5A3F7EDB9DDB1D1A91C217E9E, jitter_sim_log.md=5C66B3D05A92F17961EC9EFC7F8406BFA6117CB04F5F47260F544AB52B8072AE) ②Pilot non-modifier-key takeover has highest priority (Shift/Ctrl/Alt/Meta/AltGraph exempt) ③file:// double-click usable: zero fetch / zero ES module / zero build; three.js uses web\vendor\three.min.js ④Coordinate mapping (x,z,y) unchanged ⑤Direction error formula = jump moment −r̂ unchanged.
 
-## 阶段 1：drone_physics.js（飞行动力学）
+## Phase 1: drone_physics.js (Flight Dynamics)
 
-新建 `web\drone_physics.js`（普通 <script>，挂 window.DronePhysics）：
+Create `web\drone_physics.js` (plain `<script>`, attached to window.DronePhysics):
 
 ```js
 // class DronePhysics
-// 状态：pos(Vector3), vel(Vector3), quat(四元数), angVel(Vector3)
-// 输入 update(dtSec, motors[4])——4 个电机转速(归一化 0..1.2)
-// 参数（演示级、世界单位，标注"未真机标定"）：
-//   mass=1.0, gravity=9.8, kf=0.12(推力系数), km=0.018(反扭矩系数),
+// State: pos(Vector3), vel(Vector3), quat(quaternion), angVel(Vector3)
+// Input update(dtSec, motors[4]) — 4 motor speeds (normalized 0..1.2)
+// Parameters (demo-grade, world units, noted as "not calibrated for real hardware"):
+//   mass=1.0, gravity=9.8, kf=0.12 (thrust coefficient), km=0.018 (anti-torque coefficient),
 //   dragLin=0.35, dragQuad=0.02, maxTilt=40°, inertia=(0.02,0.02,0.04)
-// 公式：
-//   总推力 T = kf * Σ(motors[i]^2)，沿机体 -y 轴（世界系经 quat 旋转）
-//   力矩：roll=(m0-m2), pitch=(m1-m3), yaw=km*(m0-m2+m1-m3)（标注四旋翼 X 型混控简化）
-//   平动：a = (T_body + F_drag)/m + g；F_drag = -dragLin*v - dragQuad*|v|*v
-//   姿态：四元数积分 q += 0.5*q⊗ω*dt，每步归一化；欧拉角钳制 ±maxTilt
-//   积分：半隐式欧拉（先更新 vel 再更新 pos），dt 钳制 ≤0.033s
-// 悬停校准：hoverOmega = sqrt(mass*gravity/(4*kf))，导出为 DronePhysics.HOVER
-// 自测函数 DronePhysics.selfTest()：悬停 5s 位置漂移 <0.3、匀加速、姿态响应三项 PASS/FAIL 返回字符串
+// Formulas:
+//   Total thrust T = kf * Σ(motors[i]^2), along body -y axis (world frame rotated by quat)
+//   Torque: roll=(m0-m2), pitch=(m1-m3), yaw=km*(m0-m2+m1-m3) (noted as simplified quadcopter X-type mixing)
+//   Translation: a = (T_body + F_drag)/m + g; F_drag = -dragLin*v - dragQuad*|v|*v
+//   Attitude: quaternion integration q += 0.5*q⊗ω*dt, normalize each step; euler angles clamped to ±maxTilt
+//   Integration: semi-implicit Euler (update vel first, then pos), dt clamped ≤0.033s
+// Hover calibration: hoverOmega = sqrt(mass*gravity/(4*kf)), exported as DronePhysics.HOVER
+// Self-test function DronePhysics.selfTest(): hover 5s position drift <0.3, uniform acceleration, attitude response — three PASS/FAIL string results
 ```
 
-集成：world.html 的 driveAgent 中"无人机 agent"改走 DronePhysics（果蝇 agent 保持现运动学——果蝇会飞不是直升机）；控制台加"⚙️ 飞行动力学"开关（开=新物理，关=旧运动学，默认开）；HUD 增 4 条电机转速条+姿态角(roll/pitch)。
+Integration: In world.html's driveAgent, switch the "drone agent" path to use DronePhysics (fruit fly agent keeps the existing kinematics — fruit flies fly, they're not helicopters); add a "⚙️ Flight Dynamics" toggle to the console (on = new physics, off = old kinematics, default on); HUD adds 4 motor speed bars + attitude angles (roll/pitch).
 
-## 阶段 2：drone_adapter.js（脑→电机适配层）
+## Phase 2: drone_adapter.js (Brain → Motor Adaptation Layer)
 
-新建 `web\drone_adapter.js`（挂 window.DroneAdapter）：
+Create `web\drone_adapter.js` (attached to window.DroneAdapter):
 
 ```js
-// 仿生分层：果蝇脑(决策) → 本适配层(胸神经节) → 电机(飞行肌)；PID 姿态环=平衡棒反射
+// Biomimetic layering: fruit fly brain (decision) → this adapter layer (thoracic ganglion) → motors (flight muscle); PID attitude loop = haltere reflex
 // class DroneAdapter { update(brainOut, droneState, dtMs, pilotActive) -> motors[4] }
-// 状态机：CRUISE(巡航) / ESCAPE(逃逸) / PILOT(飞手) / LAND(降落)
-// - PILOT 优先级最高：pilotActive（world.html 现有非修饰键逻辑）→ 直接旧运动学接管，本层旁路
-// - ESCAPE：brainOut.triggered==true 触发，持续 300ms：
-//     油门 = HOVER*1.5（阶跃，模拟 GF 爆发）
-//     目标倾角 = clamp(escapeDir 投影到水平面, ±35°) → 期望 roll/pitch
-// - CRUISE：油门=HOVER*1.02，期望姿态=轻微随机游走（每 2-4s 换目标航向，角速度 ≤15°/s，用注入 rng 保确定性）
-// - LAND：慢速降油门至 HOVER*0.8 直到落地（pos.y<阈值）→ 油门 0
-// PID 姿态环：kp=0.045, ki=0.001, kd=0.028（误差=期望姿态-当前姿态，输出加进 motors）
-// 混控矩阵：[m0,m1,m2,m3] = HOVER*[throttle, +roll, -roll, ...]（X 型，写清每项）
-// 永远导出 lastState（HUD 显示状态机：巡航/逃逸/飞手/降落）
+// State machine: CRUISE / ESCAPE / PILOT / LAND
+// - PILOT highest priority: pilotActive (world.html existing non-modifier-key logic) → direct old kinematics takeover, this layer bypassed
+// - ESCAPE: brainOut.triggered==true triggers, lasts 300ms:
+//     Throttle = HOVER*1.5 (step, simulating GF burst)
+//     Target tilt = clamp(escapeDir projected to horizontal plane, ±35°) → desired roll/pitch
+// - CRUISE: throttle=HOVER*1.02, desired attitude = slight random walk (new target heading every 2-4s, angular velocity ≤15°/s, use injected rng for determinism)
+// - LAND: gradually reduce throttle to HOVER*0.8 until landing (pos.y<threshold) → throttle 0
+// PID attitude loop: kp=0.045, ki=0.001, kd=0.028 (error=desired attitude - current attitude, output added to motors)
+// Mixing matrix: [m0,m1,m2,m3] = HOVER*[throttle, +roll, -roll, ...] (X-type, document each term)
+// Always export lastState (HUD displays state machine: cruise/escape/pilot/land)
 ```
 
-飞手接管验收：按下任意非修饰键那一帧，动力学开关退居二线、旧运动学立即接管（现有逻辑原样保留）。
+Pilot takeover verification: On the frame any non-modifier key is pressed, the dynamics toggle steps aside and old kinematics takes over immediately (existing logic preserved as-is).
 
-## 阶段 3：持续飞行行为
+## Phase 3: Continuous Flight Behavior
 
-world.html 逻辑（大脑持续在线，每决策周期跑 SNN）：
-- 巡航（CRUISE）：慢速游荡 + 避障转向——用 LPLC2 输入的 loom 场采样最近障碍方位，当 0.35<loom<触发阈值时朝远离方向偏航（**不触发逃逸**，只转向）；触发阈值以上照旧走逃逸。
-- 逃逸（ESCAPE）：现有 SNN 逃逸不动，只是改由适配层执行（油门阶跃+倾角）。
-- 降落（LAND）：控制台按钮 + 电量装饰条（100→0 用时 10min，到 0 自动 LAND；飞手可随时重新起飞）。
-- HUD 增：状态机文字（巡航/逃逸/飞手/降落）+ 电机 4 条 + 姿态角。
+world.html logic (brain stays online, runs SNN every decision cycle):
+- Cruise (CRUISE): slow wandering + obstacle avoidance steering — sample nearest obstacle bearing from the loom field via LPLC2 input; when 0.35<loom<threshold, yaw away from obstacle (**does not trigger escape**, only steers); above threshold, proceed with escape as before.
+- Escape (ESCAPE): existing SNN escape unchanged, only executed via the adapter layer (throttle step + tilt angle).
+- Land (LAND): console button + battery decoration bar (100→0 over 10 minutes, auto-LAND at 0; pilot can take off again anytime).
+- HUD additions: state machine text (cruise/escape/pilot/land) + 4 motor bars + attitude angles.
 
-## 阶段 4：回归自测（每阶段改完立刻跑）
+## Phase 4: Regression Self-Tests (run immediately after each phase change)
 
-1. `F:\Node\node.exe web\smoke_test.js` 4/4 必须保持
-2. 新增 `web\smoke_drone.js`：悬停稳定（5s 漂移<0.3）、逃逸响应（触发后 <300ms 速度指向逃逸方向分量>0）、飞手接管（一帧内接管）、自测 DronePhysics.selfTest() 全 PASS
-3. 改动任何 web\*.js 后跑 `F:\Node\node.exe web\evaluate.js`，results.json 哈希必须=锚点值；漂移即回滚当步
-4. world.html 内联脚本语法检查（node new Function）
+1. `F:\Node\node.exe web\smoke_test.js` 4/4 must remain passing
+2. New `web\smoke_drone.js`: hover stability (5s drift<0.3), escape response (after trigger <300ms velocity component toward escape direction>0), pilot takeover (takes over within one frame), DronePhysics.selfTest() all PASS
+3. After changing any web\*.js, run `F:\Node\node.exe web\evaluate.js`; results.json hash must equal the anchor value; any drift triggers rollback of that step
+4. world.html inline script syntax check (node new Function)
 
-## 阶段 5：GitHub 打包
+## Phase 5: GitHub Packaging
 
-1. `LICENSE`（MIT，Copyright (c) 2026 + 用户名占位）
-2. `.gitignore`：pylibs/、*.pt、v4/ckpt*、__pycache__、%TEMP% 产物
-3. `README.md` 重写（双语：中文在前英文摘要在后）：
-   - 标题：FlyWire Connectome Brain → Drone Control（果蝇连接组大脑开无人机）
-   - 30 秒速览：双击 web\world.html → 选"无人机" → 按"自动威胁"看果蝇脑开飞机躲攻击
-   - 架构图（ASCII）：FlyWire FAFB(1871神经元) → LIF SNN → 逃逸方向 → DroneAdapter(PID+混控) → 4电机 → 3D世界
-   - 指标表：v3 数字（触发 0.799/成功率 0.903/方向 10.7°/潜伏 7.65ms/抖动 92% 全项达标）+ D组物理口径
-   - 诚实边界三条（见 task_plan.md）
-   - 引用：Dorkenwald et al. Nature 634:124–138 (2024)；勘误"谷歌开源=Neuroglancer 查看器，数据=FlyWire"；snedea/flybrain 链接
-   - 复现：extract_circuit.py → train_snn.py → make_web_data.py → evaluate.js 命令 + 两个哈希锚点
-   - 动图占位：`docs/demo.gif`（阶段 6 产出后替换）
-4. `docs/` 收纳：full-fly-design.md、本规格书、v4\REPORT_v4.md 摘录
-5. GitHub Pages 部署段落（Settings→Pages→main→/web）
+1. `LICENSE` (MIT, Copyright (c) 2026 + username placeholder)
+2. `.gitignore`: pylibs/, *.pt, v4/ckpt*, __pycache__, %TEMP% artifacts
+3. `README.md` rewrite (bilingual: Chinese first, English summary after):
+   - Title: FlyWire Connectome Brain → Drone Control
+   - 30-second quick start: double-click web\world.html → select "Drone" → press "Auto Threat" to watch the fruit fly brain fly a plane dodging attacks
+   - Architecture diagram (ASCII): FlyWire FAFB (1871 neurons) → LIF SNN → escape direction → DroneAdapter (PID + mixing) → 4 motors → 3D world
+   - Metrics table: v3 numbers (trigger 0.799 / success rate 0.903 / direction 10.7° / latency 7.65ms / jitter 92% all items pass) + Group D physics metrics
+   - Three honest boundaries (see task_plan.md)
+   - Citations: Dorkenwald et al. Nature 634:124–138 (2024); correction "Google open source = Neuroglancer viewer, data = FlyWire"; snedea/flybrain link
+   - Reproduction: extract_circuit.py → train_snn.py → make_web_data.py → evaluate.js commands + two hash anchors
+   - Demo GIF placeholder: `docs/demo.gif` (to be replaced after Phase 6 output)
+4. `docs/` index: full-fly-design.md, this spec, v4\REPORT_v4.md excerpt
+5. GitHub Pages deployment section (Settings→Pages→main→/web)
 
-## 阶段 6：演示动图（可选）
+## Phase 6: Demo GIF (optional)
 
-固定种子自动脚本拍 6 帧关键瞬间（巡航→威胁入画→脑放电⚡→逃逸→脱险→大脑面板特写）拼 GIF；做不了就给用户手录操作剧本（30 秒分镜）。
+Fixed-seed automated script captures 6 key frames (cruise → threat enters → brain fires ⚡ → escape → safe → brain panel close-up) stitched into GIF; if not possible, provide the user with a manual recording script (30-second storyboard).
 
-## 汇报纪律（所有 agent）
-每阶段≤10 行中文：改了什么文件、自测结果、哈希验证一行、下一步。禁长篇表格。
+## Reporting Discipline (all agents)
+Each phase ≤10 lines: which files changed, self-test results, one-line hash verification, next step. No lengthy tables allowed.

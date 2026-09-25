@@ -1,39 +1,39 @@
-# v4 阶段B 训练状态
+# v4 Phase B Training Status
 
-**状态**: 已完成 ✅  
-**种子**: 20240521（单种子）  
-**耗时**: 220 分钟（25 epoch，50k 样本）  
-**结束时间**: 2026-09-25
+**Status**: Completed ✅  
+**Seed**: 20240521 (single seed)  
+**Duration**: 220 minutes (25 epochs, 50K samples)  
+**Completion time**: 2026-09-25
 
-## 新增内容（相对 v4 阶段A）
-1. **威胁真实性二分类头** (`head_real`)：训练时 10% 假威胁注入（远距离型+偏航型），损失 +0.3·BCE
-2. **TTC 回归头** (`head_ttc`)：目标 = min(ttc,100ms)/50，损失 +0.2·MSE
+## New Additions (compared to v4 Phase A)
+1. **Threat authenticity binary classification head** (`head_real`): 10% fake threat injection during training (long-range type + off-axis type), loss +0.3·BCE
+2. **TTC regression head** (`head_ttc`): target = min(ttc,100ms)/50, loss +0.2·MSE
 
-## 验证集结果（fusion）
-| 指标 | 值 |
-|------|-----|
-| 触发准确率(GF) | 76.2% |
-| 避障成功率 | 77.3% |
-| 方向误差 | 18.9° |
-| 威胁召回率 | 85.6% |
-| 误报率 | 32.3% |
+## Validation Set Results (fusion)
+| Metric | Value |
+|--------|-------|
+| Trigger accuracy (GF) | 76.2% |
+| Obstacle avoidance success rate | 77.3% |
+| Direction error | 18.9° |
+| Threat recall | 85.6% |
+| False alarm rate | 32.3% |
 
-## OOD 集结果（fusion）
-| 指标 | 值 |
-|------|-----|
-| 触发准确率(GF) | 59.2% |
-| 避障成功率 | 52.0% |
-| 方向误差 | 30.0° |
-| 威胁召回率 | 97.0% |
-| 误报率 | 77.0% |
+## OOD Set Results (fusion)
+| Metric | Value |
+|--------|-------|
+| Trigger accuracy (GF) | 59.2% |
+| Obstacle avoidance success rate | 52.0% |
+| Direction error | 30.0° |
+| Threat recall | 97.0% |
+| False alarm rate | 77.0% |
 
-## 恢复命令
+## Resume Command
 ```bash
 py -3.13 v4\train_snn_v4b.py --seed 20240521 --resume
 ```
 
-## 输出文件
-- `v4/snn_trained_seed20240521.json` — 模型权重（含 head_real + head_ttc）
-- `v4/metrics_seed20240521.json` — 评估指标
-- `v4/training_curve_seed20240521.png` — 训练曲线
-- `v4/status_seed20240521.json` — 状态文件
+## Output Files
+- `v4/snn_trained_seed20240521.json` — Model weights (includes head_real + head_ttc)
+- `v4/metrics_seed20240521.json` — Evaluation metrics
+- `v4/training_curve_seed20240521.png` — Training curve
+- `v4/status_seed20240521.json` — Status file

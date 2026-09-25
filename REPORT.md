@@ -1,186 +1,186 @@
-# 果蝇视-风双模态威胁逃逸 SNN — 项目实验报告
+# Fruit Fly Visual-Wind Dual-Modal Threat Escape SNN — Project Experiment Report
 
-> FlyWire 全脑连接组约束的脉冲神经网络 · 3D 微观世界验证台 · 目标应用：无人机仿生避障 / 反干扰
-
----
-
-## 0. 摘要
-
-本项目用**真实连接组拓扑约束的脉冲神经网络（SNN）**完成"视-风双模态威胁逃逸控制"：以果蝇全脑连接组（FlyWire FAFB）抽出的视觉膨胀通路（LPLC2）、风觉通路（Johnston's 器 JO-B/JO-C）与巨纤维（GF）逃逸回路为硬约束拓扑，在其上只训练连接权重，实现"威胁逼近 → GF 放电触发 → 背离威胁逃逸"的完整反射弧。3D 开放世界网页（`web\world.html`，"果蝇·微观世界"）是该系统的**验证台 + 演示橱窗**（不是游戏产品）：在同一场景中可换身体、换环境、施加不同突袭威胁，并以与训练端同口径的统计检验控制效果。目标应用领域为**无人机仿生避障 / 反干扰**。
-
-**科学限定语（适用于全文结论）**：训练数据为物理公式**合成**的线索-标签映射（**非电生理 / 行为学实测**）；连接组拓扑取自**单只雌性成蝇**（FlyWire FAFB），突触数仅为解剖连接强度代理而**非生理权重**；全部结论**只在该合成控制任务上成立**。
+> Spiking Neural Network constrained by FlyWire whole-brain connectome · 3D micro-world verification platform · Target application: drone biomimetic obstacle avoidance / anti-interference
 
 ---
 
-## 1. 方法
+## 0. Abstract
 
-### 1.1 数据
+This project uses a **spiking neural network (SNN) constrained by real connectome topology** to achieve "visual-wind dual-modal threat escape control": using the visual expansion pathway (LPLC2), wind-sense pathway (Johnston's organ JO-B/JO-C), and giant fiber (GF) escape circuit extracted from the fruit fly whole-brain connectome (FlyWire FAFB) as hard topology constraints, training only connection weights on this substrate to implement the complete reflex arc of "threat approach → GF firing trigger → escape away from threat." The 3D open-world webpage (`web\world.html`, "Fruit Fly · Micro World") serves as the system's **verification platform + demo showcase** (not a game product): within the same scene, you can swap bodies, swap environments, apply different sneak attack threats, and use statistical tests with the same metrics as the training pipeline to verify control effectiveness. The target application domain is **drone biomimetic obstacle avoidance / anti-interference**.
 
-FlyWire FAFB 全脑连接组本地下载 4 个文件：
+**Scientific qualifications (applies to all conclusions herein)**: Training data consists of cue-label mappings **synthesized** from physics formulas (**not electrophysiology / behavioral measurements**); connectome topology is from a **single female adult fly** (FlyWire FAFB), and synapse counts are merely proxies for anatomical connection strength, **not physiological weights**; all conclusions **hold only on this synthetic control task**.
 
-| 文件 | 内容 |
+---
+
+## 1. Methods
+
+### 1.1 Data
+
+FlyWire FAFB whole-brain connectome downloaded locally as 4 files:
+
+| File | Content |
 |---|---|
-| `connections_princeton.csv.gz` | **534 万行**连接记录（边级 `nt_type` 递质标注） |
-| `consolidated_cell_types.csv.gz` | **138327 个神经元**（细胞类型整合表） |
-| `classification.csv.gz` | 分类层级（super_class 等） |
-| `neurons.csv.gz` | 神经元属性（递质兜底标注） |
+| `connections_princeton.csv.gz` | **5.34 million rows** of connection records (edge-level `nt_type` neurotransmitter annotations) |
+| `consolidated_cell_types.csv.gz` | **138,327 neurons** (consolidated cell type table) |
+| `classification.csv.gz` | Classification hierarchy (super_class, etc.) |
+| `neurons.csv.gz` | Neuron attributes (neurotransmitter fallback annotations) |
 
-> 数据位置：4 个文件放在 `extract_circuit.py` 顶部 `DATA_DIR` 指定的目录（默认 `<FlyWire数据目录>`），换机器请修改该常量。
+> Data location: the 4 files should be placed in the directory specified by `DATA_DIR` at the top of `extract_circuit.py` (default: `<FlyWire data directory>`); modify this constant when switching machines.
 
-### 1.2 关键神经元
+### 1.2 Key Neurons
 
-| 角色 | 选取依据 | 数量 |
+| Role | Selection basis | Count |
 |---|---|---|
-| 视觉膨胀输入 | LPLC2（视觉膨胀 / 宽场运动敏感投射神经元） | ×210 |
-| 风觉输入 | Johnston's 器 JO-B / JO-C | ×325 |
-| 逃逸中枢（巨纤维） | GF：`primary_type=DNp01`，`additional_type` 含 `Giant_Fiber` | ×2 |
-| 输出层 | GF 下游 2 跳内的下行 / 运动神经元 | ×169 |
+| Visual expansion input | LPLC2 (visual expansion / wide-field motion sensitive projection neurons) | ×210 |
+| Wind-sense input | Johnston's organ JO-B / JO-C | ×325 |
+| Escape center (giant fiber) | GF: `primary_type=DNp01`, `additional_type` contains `Giant_Fiber` | ×2 |
+| Output layer | Downstream / motor neurons within 2 hops of GF | ×169 |
 
-### 1.3 子图抽取
+### 1.3 Subgraph Extraction
 
-仅保留在「输入 → GF」**≤3 条突触边**短路径上的神经元（GF 逃逸潜伏期仅数毫秒，为少突触通路），并强制并入 210 个输入、GF 与 169 个输出节点，得：
+Only neurons on short paths of **≤3 synaptic edges** from "input → GF" are retained (GF escape latency is only a few milliseconds, indicating an oligosynaptic pathway), and the 210 input nodes, GF, and 169 output nodes are forced to be included, yielding:
 
-> **1871 节点 / 45524 边**（`syn_count ≥ 3`）
+> **1871 nodes / 45524 edges** (`syn_count ≥ 3`)
 
-### 1.4 权重初始化与递质符号
+### 1.4 Weight Initialization and Neurotransmitter Signs
 
-- 权重初始化：**W = sign(NT)·log1p(syn_count)**，并按突触后总入强度归一化（×1.2 缩放）；输入通道另有**可学习增益 in_gain**；
-- 递质符号（果蝇）：**ACH +1 / GABA −1 / GLUT −1（昆虫谷氨酸为抑制）/ DA、SER、OCT 为神经调质 +1**（并在数据中标记 `modulatory`）。
+- Weight initialization: **W = sign(NT)·log1p(syn_count)**, normalized by postsynaptic total inbound strength (×1.2 scaling); input channels have an additional **learnable gain in_gain**;
+- Neurotransmitter signs (fruit fly): **ACH +1 / GABA −1 / GLUT −1 (insect glutamate is inhibitory) / DA, SER, OCT are neuromodulators +1** (and marked `modulatory` in the data).
 
-### 1.5 模型
+### 1.5 Model
 
-- LIF 脉冲神经元：**β = 0.85，Vth = 1.0，dt = 1 ms，仿真窗口 12 ms**；
-- **拓扑 mask 固定，只训练权重**（另训练读出头与可学习输入增益 in_gain；FlyWire 连接结构作为硬约束不可改）；
-- 代理梯度：snntorch `surrogate.fast_sigmoid()`。
+- LIF spiking neurons: **β = 0.85, Vth = 1.0, dt = 1 ms, simulation window 12 ms**;
+- **Topology mask fixed, only weights are trained** (readout head and learnable input gain in_gain are also trained; FlyWire connectome structure serves as an immutable hard constraint);
+- Surrogate gradient: snntorch `surrogate.fast_sigmoid()`.
 
-### 1.6 训练
+### 1.6 Training
 
-- 数据：**合成数据 5000 题 × 25 epoch**，由物理公式程序化生成线索与标签：
-  - 视觉膨胀率 `dθ/dt = −2s·ṙ/(r²+s²)`；
-  - 风压 `u ∝ s²·v/r²`（球体势流近似）；
-  - 标签：**接近中（ṙ < 0）且碰撞时间 < 50 ms 且距离 < 25 cm 触发**；**逃逸方向 = 背离威胁**（单位向量）。
-- 优化：**Adam + 余弦衰减**；
-- 损失：**0.5·BCE（读出头）+ 0.5·方向余弦损失 + 能量项（2e-3·放电次数·T）+ 0.6·GF 放电 BCE（pos_weight = 2.5）**。
+- Data: **5000 synthetic samples × 25 epochs**, cues and labels generated programmatically from physics formulas:
+  - Visual expansion rate `dθ/dt = −2s·ṙ/(r²+s²)`;
+  - Wind pressure `u ∝ s²·v/r²` (sphere potential flow approximation);
+  - Labels: **trigger when approaching (ṙ < 0) AND time-to-collision < 50 ms AND distance < 25 cm**; **escape direction = away from threat** (unit vector).
+- Optimizer: **Adam + cosine decay**;
+- Loss: **0.5·BCE (readout head) + 0.5·direction cosine loss + energy term (2e-3·spike count·T) + 0.6·GF firing BCE (pos_weight = 2.5)**.
 
-### 1.7 触发判据（机制化）
+### 1.7 Trigger Criterion (Mechanistic)
 
-**GF 放电**即逃逸触发——不依赖读出头阈值，判据本身是回路机制（巨纤维发放 → 逃逸机动）。
-
----
-
-## 2. 主结果（训练评估）
-
-验证集 **1200 条**，**固定种子**：
-
-| 组别 | 触发准确率(GF) | 避障成功率 | 方向误差 | GF潜伏期 |
-|---|---|---|---|---|
-| 融合 | 0.799 | 0.903 | 10.7° | 7.65ms |
-| 纯视觉 | 0.801 | 0.787 | 18.4° | 7.60ms |
-| 纯风觉 | 0.527 | 0.000 | 68.0° | — |
-
-**指标定义**：成功率 = 有效威胁中（GF 放电且方向误差 < 30°）占比；方向误差 = 对全部有效威胁样本的读出方向与"背离威胁"真值的夹角均值；GF 潜伏期 = 有效威胁样本中 GF 放电回合的首次放电时刻均值（触发判据：首次放电步 <12 ms）。
-
-> 注 1：纯风觉组潜伏期"—" = GF 在 12 ms 窗内零放电（触发判据为首次放电步 <12 ms），潜伏期无定义（`metrics.json` 记 null，语义 = 从未放电、潜伏期无定义）；纯风觉触发准确率 0.527 = "恒判无威胁"基线（负样本占比 632/1200 = 52.7%），不代表判别能力。
-> 注 2：本主表为单训练种子（SEED=20240521）在 1200 条固定验证样本上的一次评估，无 std；带 ±std 的 5 种子评估见 §3.1。
+**GF firing = escape trigger** — independent of readout head threshold; the criterion itself is a circuit mechanism (giant fiber fires → escape maneuver).
 
 ---
 
-## 3. 扩展实验矩阵
+## 2. Main Results (Training Evaluation)
 
-> 本节数据由 `web\evaluate.js`（确定性蒙特卡洛评估器）生成，明细存于 `web\results.json`（同种子两次运行 SHA256 一致，逐位可复现）。
-> 每格为 **均值±样本标准差（5 种子 × 200 样本 = 1000 样本；标准差为对 5 个种子级指标值取 ddof=1 的样本标准差）**。A/B/C 组"避障成功率"为**方向口径**（有效威胁中 GF 放电且方向误差<30°）；D 组为**物理积分口径**（见 3.4），**两口径不可混用**。
+Validation set: **1200 samples**, **fixed seed**:
 
-### 3.1 A 模态对照（环境=晴 meadow）
-
-| 组别 | 触发准确率 | 避障成功率 | 方向误差° | GF潜伏期ms |
+| Group | Trigger Accuracy (GF) | Obstacle Avoidance Success Rate | Direction Error | GF Latency |
 |---|---|---|---|---|
-| 融合 | 0.801±0.020 | 0.926±0.030 | 10.6±0.5 | 7.65±0.20 |
-| 纯视觉 | 0.796±0.023 | 0.797±0.031 | 18.2±0.5 | 7.62±0.20 |
-| 纯风觉 | 0.529±0.014 | 0.000±0.000 | 65.4±1.8 | —（全程 GF 零放电） |
+| Fusion | 0.799 | 0.903 | 10.7° | 7.65ms |
+| Vision only | 0.801 | 0.787 | 18.4° | 7.60ms |
+| Wind only | 0.527 | 0.000 | 68.0° | — |
 
-**解读**：触发几乎全靠视觉（融合 0.801 vs 纯视觉 0.796）；风觉的价值在**方向**（10.6° vs 18.2°）——融合增益主要体现在"往哪躲"而非"何时躲"。纯风觉 12 ms 窗内驱不动 GF（触发判据为首次放电步 <12 ms；5 种子均零放电），其 0.529 只是"恒判无威胁"基线（负样本占 52.9%）。与训练端 `metrics.json` 交叉验证量级一致（成功率差 2.3pp，不到 1 个种子标准差）。
+**Metric definitions**: success rate = proportion of effective threats (GF fires AND direction error < 30°); direction error = mean angle between readout direction and "away from threat" ground truth across all effective threat samples; GF latency = mean first-fire time across effective threat samples where GF fired (trigger criterion: first fire step <12 ms).
 
-### 3.2 B 环境（晴 · 大风 · 黑夜，融合模式）
-
-| 组别 | 触发准确率 | 避障成功率 | 方向误差° | GF潜伏期ms |
-|---|---|---|---|---|
-| 晴 | 0.801±0.020 | 0.926±0.030 | 10.6±0.5 | 7.65±0.20 |
-| 大风 | 0.782±0.014 | 0.531±0.017 | 30.7±1.1 | 7.75±0.22 |
-| 黑夜 | 0.809±0.024 | 0.634±0.040 | 11.8±1.0 | 8.52±0.17 |
-
-**解读**：大风组退化的**（未经消融验证的）推测主因**是环境风固定方向叠加拖偏风觉方向估计（→ 方向误差 30.7°，成功率近半打折；注意 storm 同时含 visGain=0.85 且无单独消融臂，因果排序未经消融证实）。黑夜"触发准确率略高（0.809）"是**假象**：召回率 0.932→0.634、误报率 0.316→0.036、GF 放电次数约减半、潜伏期延长至 8.52ms——是"漏报换误报"，单看触发准确率会误导（`results.json` 含召回/误报分解）。
-
-### 3.3 C 突袭速度（低 · 中 · 高，融合 × 晴）
-
-| 组别 | 触发准确率 | 避障成功率 | 方向误差° | GF潜伏期ms |
-|---|---|---|---|---|
-| 低速（0.3–3 m/s） | 0.808±0.015 | 0.978±0.032 | 10.2±0.2 | 7.69±0.44 |
-| 中速（3–7 m/s） | 0.799±0.029 | 0.886±0.035 | 11.3±0.7 | 7.89±0.17 |
-| 高速（7–12 m/s） | 0.771±0.016 | 0.935±0.027 | 10.4±0.4 | 7.53±0.21 |
-
-**解读**：方向误差与突袭速度基本无关（10–11°）。但**高速下误报率暴涨**（P(GF放电|无威胁) = 0.210→0.305→0.545）：高速即使大脱靶样本也有强 looming+风压刺激。实用系统需在 GF 触发后叠加"威胁真实性/脱靶量"判别，否则高速场景会被虚警淹没。另：低速组有效威胁合计仅 94 条（5 种子合计），该格成功率/方向误差的估计自由度偏低，解读需谨慎。
-
-### 3.4 D 换体（果蝇身体 vs 无人机身体，融合 × 晴 × 中速）
-
-| 组别 | 触发准确率 | 避障成功率* | 方向误差° | GF潜伏期ms |
-|---|---|---|---|---|
-| 果蝇身体 | 0.799±0.029 | 0.698±0.049 | 11.3±0.7 | 7.89±0.17 |
-| 无人机身体 | 0.799±0.029 | 0.694±0.050 | 11.3±0.7 | 7.89±0.17 |
-
-\* **物理积分口径**：在二维交会平面上以 dt=1ms（上限 3000ms）积分双方运动，安全 = 已过最近点且最近距离 > 半径和（威胁半径+0.55cm）。方向口径对照值：果蝇/无人机均 0.886±0.035（与 C 组中速一致，因共用同一神经数据；换体不影响 SNN 前向，仅影响执行动力学）。
-
-**必须如实解读的关键发现**：**静止不动基线已达 0.685**（约 68% 的有效威胁本身自然脱靶）；机动真正"救回"的份额仅**果蝇 +1.5pp / 无人机 +1.0pp**（`action_saved` 口径；净增益 physical−stationary 为 +1.3pp / +1.0pp——果蝇侧有一次救回与一次致撞相抵；救回事件仅 8/529 与 5/529，±std 0.006/0.010，**低计数、解读需谨慎**）。原因：触发判据 ttc<50ms，GF 潜伏期 ~7.9ms 后载体才开始加速，50ms 窗内位移仅约 1–2cm（无人机 <1cm）。**结论**：本模型展示的是"在正确时刻向正确方向做出正确反应"（神经决策质量），**不是"机动包线救险"**；且方向口径（0.886）与积分口径（≈0.69–0.70）差异显著。对无人机应用的含义：仿生反射解决的是"何时躲、往哪躲"，要"躲得开"还需**更早的预警距离 + 更强的执行动力学**（见第 4 节局限 7）。
+> Note 1: Wind-only group latency "—" = GF had zero fires within the 12 ms window (trigger criterion is first fire step <12 ms), so latency is undefined (`metrics.json` records null, semantics = "never fired, latency undefined"); wind-only trigger accuracy 0.527 = "always judge no threat" baseline (negative sample proportion 632/1200 = 52.7%), not indicative of discriminative ability.
+> Note 2: This main table is a single evaluation from one training seed (SEED=20240521) on 1200 fixed validation samples, without std; 5-seed evaluations with ±std are in §3.1.
 
 ---
 
-## 4. 已知问题与客观局限
+## 3. Extended Experiment Matrix
 
-1. **训练数据是合成线索**（物理公式生成），非电生理/行为学实测；结论只在该控制任务成立。
-2. **连接组来自单只雌性成蝇**；突触数是解剖连接强度代理，不是生理权重。
-3. **纯风觉模态弱**：风向沿威胁速度方向，脱靶量大时与威胁方位相关性弱，且 JO→输出通路较稀疏——风觉的价值在**融合增益**而非单独工作。
-4. **弱线索跨模态预激活效应**在早期版本出现过（弱视觉 15% → 叠加 45% GF 放电），在最终 v3 模型中变弱（v3 实测：弱视觉 0 / 弱风觉 0 / 弱叠加 1.67% GF 放电，见 `metrics.json` 的 `priming`；触发更果断的代价），如实记录。
-5. **果蝇为"纯本能"**：无记忆、无在线学习（为保证可复现性，故意不做在线可塑）。
-6. **早期开发中曾出现"逃逸方向标签写反"的缺陷**（数值指标正常但语义错误），由人工验收发现并修正——说明自动指标之外**人工语义验收不可或缺**。
-7. **机动增益小（D 组物理积分揭示）**：相对静止基线 0.685，机动真正救回仅果蝇 +1.5pp / 无人机 +1.0pp（`action_saved` 口径，事件计数 8/529、5/529，低计数）——50ms 逃逸窗口内动力学位移有限，约 68% 有效威胁自然脱靶。方向口径成功率（0.886）与积分口径（≈0.69–0.70）差异显著，两口径不可混用。仿生反射解决"何时躲、往哪躲"，"躲得开"还需更早预警与更强执行动力学。
-8. **高速误报**：突袭速度越高误报率越高（0.210→0.545）；实用系统需增加威胁真实性/脱靶量判别。
-9. **早期版本 `metrics.json` 曾含字面 `NaN`**（wind_only 的 GF 潜伏期等；Python json 容许、严格 JSON 不容许，Node 无法 require）。现已根治：导出端把 NaN 写作 `null`（语义 = "从未放电、潜伏期无定义"），当前 `metrics.json` 为严格合法 JSON。
+> Data in this section is generated by `web\evaluate.js` (deterministic Monte Carlo evaluator); details are stored in `web\results.json` (same seed produces identical SHA256 across runs, bit-for-bit reproducible).
+> Each cell is **mean ± sample standard deviation (5 seeds × 200 samples = 1000 samples; std is sample std of the 5 seed-level metric values with ddof=1)**. Groups A/B/C "obstacle avoidance success rate" uses the **direction metric** (GF fires AND direction error < 30° among effective threats); Group D uses the **physical integration metric** (see 3.4); **the two metrics must not be mixed**.
+
+### 3.1 A — Modality Control (Environment = clear meadow)
+
+| Group | Trigger Accuracy | Obstacle Avoidance Success Rate | Direction Error ° | GF Latency ms |
+|---|---|---|---|---|
+| Fusion | 0.801±0.020 | 0.926±0.030 | 10.6±0.5 | 7.65±0.20 |
+| Vision only | 0.796±0.023 | 0.797±0.031 | 18.2±0.5 | 7.62±0.20 |
+| Wind only | 0.529±0.014 | 0.000±0.000 | 65.4±1.8 | — (GF zero fires throughout) |
+
+**Interpretation**: Triggering depends almost entirely on vision (fusion 0.801 vs vision only 0.796); wind sense's value lies in **direction** (10.6° vs 18.2°) — the fusion gain primarily manifests in "which direction to dodge" rather than "when to dodge." Wind alone cannot drive GF within the 12 ms window (trigger criterion: first fire step <12 ms; all 5 seeds show zero fires), and its 0.529 is merely the "always judge no threat" baseline (negative samples 52.9%). Cross-validation with training `metrics.json` shows consistent magnitudes (success rate difference 2.3pp, less than 1 seed std).
+
+### 3.2 B — Environment (Clear · Strong Wind · Pitch Black, Fusion Mode)
+
+| Group | Trigger Accuracy | Obstacle Avoidance Success Rate | Direction Error ° | GF Latency ms |
+|---|---|---|---|---|
+| Clear | 0.801±0.020 | 0.926±0.030 | 10.6±0.5 | 7.65±0.20 |
+| Strong wind | 0.782±0.014 | 0.531±0.017 | 30.7±1.1 | 7.75±0.22 |
+| Pitch black | 0.809±0.024 | 0.634±0.040 | 11.8±1.0 | 8.52±0.17 |
+
+**Interpretation**: The **(unverified by ablation) hypothesized main cause** of strong wind degradation is the fixed environmental wind direction superimposed on drag-biased wind direction estimates (→ direction error 30.7°, success rate nearly halved; note storm also has visGain=0.85 and no isolated ablation arm, so causal ordering is not confirmed by ablation). Pitch black's "slightly higher trigger accuracy (0.809)" is an **illusion**: recall drops 0.932→0.634, false alarm rate drops 0.316→0.036, GF fire count approximately halves, latency extends to 8.52ms — it trades missed detections for false alarms; looking only at trigger accuracy is misleading (`results.json` contains recall/false-alarm breakdown).
+
+### 3.3 C — Sneak Attack Speed (Low · Medium · High, Fusion × Clear)
+
+| Group | Trigger Accuracy | Obstacle Avoidance Success Rate | Direction Error ° | GF Latency ms |
+|---|---|---|---|---|
+| Low speed (0.3–3 m/s) | 0.808±0.015 | 0.978±0.032 | 10.2±0.2 | 7.69±0.44 |
+| Medium speed (3–7 m/s) | 0.799±0.029 | 0.886±0.035 | 11.3±0.7 | 7.89±0.17 |
+| High speed (7–12 m/s) | 0.771±0.016 | 0.935±0.027 | 10.4±0.4 | 7.53±0.21 |
+
+**Interpretation**: Direction error is largely independent of sneak attack speed (10–11°). However, **false alarm rate surges at high speed** (P(GF fires | no threat) = 0.210→0.305→0.545): even large-miss samples at high speed have strong looming + wind pressure stimuli. A practical system needs an additional "threat authenticity / miss magnitude" discriminator after GF trigger, otherwise high-speed scenarios will be overwhelmed by false alarms. Additionally: the low-speed group has only 94 total effective threats (across 5 seeds), so the estimated degrees of freedom for success rate / direction error in this cell are low — interpret with caution.
+
+### 3.4 D — Cross-Platform (Fruit Fly Body vs Drone Body, Fusion × Clear × Medium Speed)
+
+| Group | Trigger Accuracy | Obstacle Avoidance Success Rate* | Direction Error ° | GF Latency ms |
+|---|---|---|---|---|
+| Fruit fly body | 0.799±0.029 | 0.698±0.049 | 11.3±0.7 | 7.89±0.17 |
+| Drone body | 0.799±0.029 | 0.694±0.050 | 11.3±0.7 | 7.89±0.17 |
+
+\* **Physical integration metric**: both parties' motion integrated on a 2D encounter plane with dt=1ms (capped at 3000ms); safe = passed the closest point AND closest distance > sum of radii (threat radius + 0.55cm). Direction-metric reference values: fruit fly / drone both 0.886±0.035 (consistent with Group C medium speed, since they share the same neural data; cross-platform swap does not affect SNN forward pass, only execution dynamics).
+
+**Key finding that must be interpreted honestly**: **The stationary baseline already reaches 0.685** (~68% of effective threats naturally miss); the fraction truly "saved" by maneuvering is only **fruit fly +1.5pp / drone +1.0pp** (`action_saved` metric; net gain physical−stationary is +1.3pp / +1.0pp — fruit fly side has one save offset by one caused collision; save events are only 8/529 and 5/529, ±std 0.006/0.010, **low counts, interpret with caution**). Reason: trigger criterion ttc<50ms, the platform only begins accelerating after ~7.9ms GF latency, so displacement within the 50ms window is only about 1–2cm (drone <1cm). **Conclusion**: this model demonstrates "making the correct response at the correct moment in the correct direction" (neural decision quality), **not "maneuver-envelope hazard rescue"**; and the direction metric (0.886) differs substantially from the integration metric (~0.69–0.70). Implications for drone applications: biomimetic reflex solves "when to dodge and which direction to dodge"; actually avoiding the threat additionally requires **earlier warning distance + stronger execution dynamics** (see Section 4, limitation 7).
 
 ---
 
-## 5. 展望（**未实现**）
+## 4. Known Issues and Objective Limitations
 
-> 以下均为规划方向，当前版本**未实现**：
-
-- 多巴胺式在线强化学习；
-- 记忆 / 习惯化；
-- PX4 软件在环仿真 → 真机验证；
-- 飞手三模式控制权仲裁（当前仅实现手动 / 仿生二态开关 + 飞手输入即接管）。
+1. **Training data is synthetic cues** (generated from physics formulas), not electrophysiology / behavioral measurements; conclusions hold only on this control task.
+2. **Connectome is from a single female adult fly**; synapse counts are proxies for anatomical connection strength, not physiological weights.
+3. **Wind-only modality is weak**: wind direction aligns with threat velocity direction, so when miss magnitude is large, correlation with threat bearing is weak, and the JO→output pathway is sparse — wind sense's value lies in **fusion gain**, not standalone use.
+4. **Weak-cue cross-modal pre-activation effects** appeared in early versions (weak vision 15% → stacked 45% GF firing), but weakened in the final v3 model (v3 measured: weak vision 0 / weak wind 0 / weak stacked 1.67% GF firing, see `metrics.json` `priming`; the cost of more decisive triggering), recorded honestly.
+5. **The fruit fly is "pure instinct"**: no memory, no online learning (intentionally no online plasticity to ensure reproducibility).
+6. **Early development contained a bug where "escape direction labels were inverted"** (numerical metrics were normal but semantics were wrong), caught and fixed by manual review — demonstrating that **manual semantic review is indispensable beyond automatic metrics**.
+7. **Maneuver gain is small (revealed by Group D physical integration)**: relative to the stationary baseline of 0.685, true saves are only fruit fly +1.5pp / drone +1.0pp (`action_saved` metric, event counts 8/529 and 5/529, low counts) — within the 50ms escape window, dynamic displacement is limited, and ~68% of effective threats naturally miss. The direction-metric success rate (0.886) differs substantially from the integration metric (~0.69–0.70); the two metrics must not be mixed. Biomimetic reflex solves "when to dodge and which direction to dodge"; actually avoiding the threat additionally requires earlier warning and stronger execution dynamics.
+8. **High-speed false alarms**: false alarm rate increases with sneak attack speed (0.210→0.545); practical systems need additional threat authenticity / miss magnitude discrimination.
+9. **Early versions of `metrics.json` contained literal `NaN`** (e.g., wind_only GF latency; Python json permits this, strict JSON does not, Node cannot require it). This has been fully remedied: the export side writes NaN as `null` (semantics = "never fired, latency undefined"); the current `metrics.json` is strictly valid JSON.
 
 ---
 
-## 6. 复现方法
+## 5. Future Work (**Not Implemented**)
+
+> All of the following are planned directions, **not implemented** in the current version:
+
+- Dopamine-style online reinforcement learning;
+- Memory / habituation;
+- PX4 software-in-the-loop simulation → real hardware verification;
+- Pilot three-mode control authority arbitration (currently only manual / biomimetic two-state toggle + pilot input immediate takeover implemented).
+
+---
+
+## 6. Reproduction Method
 
 ```powershell
-$proj = '<项目根>'
-Set-Location $proj                       # 下面命令用相对路径，请先切到项目目录
-$env:PYTHONPATH = "$proj\pylibs"        # numpy/torch/snntorch 等依赖在 pylibs，必须先设置
-py -3.13 -X utf8 extract_circuit.py     # 抽取连接组子图
-py -3.13 -X utf8 train_snn.py           # 训练 + 评估 + 导出
-py -3.13 -X utf8 web\make_web_data.py   # 重训后须重新打包 snn_trained.json → web\snn_data.js
-node web\smoke_test.js                  # 前端推理引擎冒烟测试
-node web\evaluate.js                    # 扩展实验矩阵（生成 web\results.json，确定性可复现）
+$proj = '<project root>'
+Set-Location $proj                       # Commands below use relative paths; cd to project directory first
+$env:PYTHONPATH = "$proj\pylibs"        # numpy/torch/snntorch etc. dependencies are in pylibs; must set first
+py -3.13 -X utf8 extract_circuit.py     # Extract connectome subgraph
+py -3.13 -X utf8 train_snn.py           # Train + evaluate + export
+py -3.13 -X utf8 web\make_web_data.py   # After retraining, repackage snn_trained.json → web\snn_data.js
+node web\smoke_test.js                  # Frontend inference engine smoke test
+node web\evaluate.js                    # Extended experiment matrix (generates web\results.json, deterministic reproducible)
 ```
 
-- **固定随机种子**（全流程可复现）；
-- 环境依赖在 `pylibs`（`PYTHONPATH` 指向它）；
-- 原始数据：FlyWire 4 个 `csv.gz` 放在 `extract_circuit.py` 顶部 `DATA_DIR` 指定的目录（默认 `<FlyWire数据目录>`），换机器请修改该常量；
-- 面向用户的操作说明与 A/B/C/D 验收清单见 `web\manual.html`；训练管线与本地环境详见 `README.md`。
+- **Fixed random seeds** (fully reproducible pipeline);
+- Environment dependencies in `pylibs` (`PYTHONPATH` points to it);
+- Raw data: place the 4 FlyWire `csv.gz` files in the directory specified by `DATA_DIR` at the top of `extract_circuit.py` (default: `<FlyWire data directory>`); modify this constant when switching machines;
+- User-facing operating instructions and A/B/C/D acceptance checklists are in `web\manual.html`; training pipeline and local environment details are in `README.md`.
 
 ---
 
-## 7. 结论
+## 7. Conclusions
 
-1. 在连接组约束拓扑上训练的 LIF SNN 可完成"视-风双模态威胁逃逸"合成控制任务：融合模式触发准确率 0.799、避障成功率（方向口径）0.903、方向误差 10.7°、GF 潜伏期 7.65ms（扩展矩阵 5 种子评估：0.801±0.020 / 0.926±0.030 / 10.6°±0.5 / 7.65±0.20ms；±std 仅覆盖评估采样种子的不确定性，不含训练种子重复）——B 类数值阈值全部达标（阈值：触发 ≥75% / 成功 ≥85% / 方向 ≤20° / 潜伏 ≤10ms，见 `web\manual.html`"数值验收看这里"节）。
-2. 融合的价值在**方向**（10.6° vs 纯视觉 18.2°）；触发几乎全靠视觉；纯风觉单独不可用（GF 零放电）。
-3. 换体实验表明：本模型解决的是"何时躲、往哪躲"的神经决策；"躲得开"还需更早预警 + 更强执行动力学（救回率 +1.5pp / +1.0pp、净增益约 +1.3pp / +1.0pp；救回事件仅 8/529 与 5/529，低计数）。
-4. **科学限定（再次声明）**：训练数据为物理公式合成（非电生理 / 行为学实测）；连接组取自单只雌性成蝇，突触数仅是解剖连接强度代理而非生理权重；**全部结论只在该合成控制任务上成立**，不构成生物学或工程定型结论。
+1. An LIF SNN trained on a connectome-constrained topology can complete the "visual-wind dual-modal threat escape" synthetic control task: fusion mode trigger accuracy 0.799, obstacle avoidance success rate (direction metric) 0.903, direction error 10.7°, GF latency 7.65ms (extended matrix 5-seed evaluation: 0.801±0.020 / 0.926±0.030 / 10.6°±0.5 / 7.65±0.20ms; ±std covers only evaluation sampling seed uncertainty, not training seed repetition) — all B-type numerical thresholds met (thresholds: trigger ≥75% / success ≥85% / direction ≤20° / latency ≤10ms, see `web\manual.html` "numerical acceptance" section).
+2. Fusion's value lies in **direction** (10.6° vs vision only 18.2°); triggering depends almost entirely on vision; wind alone is unusable (GF zero fires).
+3. Cross-platform experiments show: this model solves the neural decision of "when to dodge and which direction to dodge"; "actually dodging" additionally requires earlier warning + stronger execution dynamics (save rate +1.5pp / +1.0pp, net gain ~+1.3pp / +1.0pp; save events only 8/529 and 5/529, low counts).
+4. **Scientific qualification (restated)**: training data is synthetically generated from physics formulas (not electrophysiology / behavioral measurements); connectome is from a single female adult fly, synapse counts are merely proxies for anatomical connection strength, not physiological weights; **all conclusions hold only on this synthetic control task** and do not constitute biological or engineering finality.

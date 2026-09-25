@@ -1,15 +1,15 @@
-# docs/ 收纳清单（索引，正文不复制）
+# docs/ Index (for reference only, not copied)
 
-本目录只做文档索引，正文一律链接到原文件，避免多处副本漂移。
+This directory serves as a document index. All content links to the original files to avoid duplicated versions drifting out of sync.
 
-## 设计与规格
+## Design & Specifications
 
-| 文档 | 链接 | 说明 |
+| Document | Link | Description |
 |---|---|---|
-| 完整果蝇设计方案 | [`../v4/full-fly-design.md`](../v4/full-fly-design.md) | 全神经巡航等完整路线（阶段 2 起）；v4 系列结果见 `../v4/REPORT_v4.md` |
-| 无人机模拟版·详细执行规格书 | [`drone_sim_spec.md`](drone_sim_spec.md) | 阶段 1–6 施工规格 + 汇报纪律，agent 照此施工 |
+| Complete Fruit Fly Design | [`../v4/full-fly-design.md`](../v4/full-fly-design.md) | Full neural cruise route and other complete paths (from Phase 2 onward); v4 series results in `../v4/REPORT_v4.md` |
+| Drone Simulation Version — Detailed Execution Specification | [`drone_sim_spec.md`](drone_sim_spec.md) | Construction specs for Phases 1–6 + reporting discipline; agents follow this to build |
 
-## 约定
+## Conventions
 
-- 指标数字以 `../web/results.json` 为准（哈希锚点见根目录 `README.md`）。
-- `demo.gif` 为演示动图占位（阶段 6 产出后替换）。
+- Metric figures are authoritative in `../web/results.json` (hash anchors in the root `README.md`).
+- `demo.gif` is a placeholder for an animated demo (to be replaced after Phase 6 output is ready).

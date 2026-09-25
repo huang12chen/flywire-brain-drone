@@ -1,37 +1,37 @@
-/* scene_fx.js —— P2 建模精修 + 四场景实质差异（纯 three.js 基元 + 程序纹理，零外部资源）
- * 🪰 果蝇：红黑复眼（程序复眼纹理）+ 六足关节（2 节腿×膝关节）+ 翅脉翅振（程序翅脉纹理）
- *        + 胸腹分节（头/胸/腹节环纹）
- * 🚁 无人机：四旋翼桨叶（双叶桨 + 模糊盘）+ 俯仰云台相机 + 航向/状态指示灯
- * 🌦️ 四场景：白日草浪云影 / 黑夜萤火虫月光 / 暴风斜雨风线 / 大风气流粒子
- * 光影升级：阴影贴图 + 半球环境光，主模型/树/蘑菇投影。
+/* scene_fx.js — P2 modeling refinement + substantive differences across four scenes (pure three.js primitives + procedural textures, zero external assets)
+ * 🪰 Fruit fly: red-black compound eyes (procedural compound eye texture) + six-legged joints (2-segment legs × knee joints) + wing veins and wing beat (procedural wing vein texture)
+ *        + thorax/abdomen segmentation (head/thorax/abdomen segment ring patterns)
+ * 🚁 Drone: quad-rotor propellers (dual-blade + blurred disc) + pitch gimbal camera + heading/status indicator lights
+ * 🌦️ Four scenes: daytime meadow with grass waves and cloud shadows / nighttime with fireflies and moonlight / storm with slanted rain and wind streaks / gale with airflow particles
+ * Lighting upgrade: shadow maps + hemisphere ambient light, main model/tree/mushroom shadows.
  */
 (function (root) {
   'use strict';
   var THREE = root.THREE;
   var FX = {};
 
-  /* ================= 程序纹理 ================= */
+  /* ================= Procedural Textures ================= */
   function canvasTex(w, h, draw) {
     var c = document.createElement('canvas'); c.width = w; c.height = h;
     draw(c.getContext('2d'));
     var t = new THREE.CanvasTexture(c);
     return t;
   }
-  // 翅脉：半透明膜 + 深色脉络（前缘粗、放射分支）
+  // Wing veins: semi-transparent membrane + dark veins (thick leading edge, radial branches)
   var WING_TEX = canvasTex(128, 96, function (g) {
     g.clearRect(0, 0, 128, 96);
     g.strokeStyle = 'rgba(60,45,30,0.85)'; g.lineCap = 'round';
-    g.lineWidth = 3.2;                                  // 前缘脉
+    g.lineWidth = 3.2;                                  // leading edge vein
     g.beginPath(); g.moveTo(4, 22); g.bezierCurveTo(40, 8, 90, 14, 124, 34); g.stroke();
     g.lineWidth = 1.6;
     var veins = [[10, 26, 26, 88], [34, 16, 48, 90], [58, 14, 74, 88], [82, 18, 98, 80], [104, 26, 116, 66]];
     veins.forEach(function (v) {
       g.beginPath(); g.moveTo(v[0], v[1]); g.quadraticCurveTo((v[0] + v[2]) / 2 + 6, (v[1] + v[3]) / 2, v[2], v[3]); g.stroke();
     });
-    g.lineWidth = 1.1;                                  // 横脉
+    g.lineWidth = 1.1;                                  // cross vein
     g.beginPath(); g.moveTo(26, 88); g.lineTo(48, 90); g.moveTo(48, 90); g.lineTo(74, 88); g.stroke();
   });
-  // 复眼：暗红底 + 黑色小眼面点阵（红黑复眼）
+  // Compound eyes: dark red base + black ommatidia dot matrix (red-black compound eyes)
   var EYE_TEX = canvasTex(64, 64, function (g) {
     g.fillStyle = '#7a1018'; g.fillRect(0, 0, 64, 64);
     g.fillStyle = '#1a0507';
@@ -39,14 +39,14 @@
       g.beginPath(); g.arc(x * 8 + (y % 2 ? 4 : 0) + 2, y * 8 + 2, 2.6, 0, 6.2832); g.fill();
     }
   });
-  // 腹节环纹：深浅相间
+  // Abdomen segment ring patterns: alternating dark and light
   var BELLY_TEX = canvasTex(32, 64, function (g) {
     for (var i = 0; i < 8; i++) {
       g.fillStyle = i % 2 ? '#3a2b22' : '#c98a3d';
       g.fillRect(0, i * 8, 32, 8);
     }
   });
-  // 云影柔斑
+  // Cloud shadow soft patches
   var SHADOW_TEX = canvasTex(128, 128, function (g) {
     var r = g.createRadialGradient(64, 64, 8, 64, 64, 62);
     r.addColorStop(0, 'rgba(20,40,25,0.42)'); r.addColorStop(1, 'rgba(20,40,25,0)');
@@ -56,12 +56,12 @@
   function shade(o) { o.traverse(function (m) { if (m.isMesh) { m.castShadow = true; } }); return o; }
   function mat(color, opt) { return new THREE.MeshLambertMaterial(Object.assign({ color: color }, opt || {})); }
 
-  /* ================= 🪰 果蝇 ================= */
+  /* ================= 🪰 Fruit Fly ================= */
   FX.buildFlyMesh = function (FLY_R) {
     var g = new THREE.Group();
-    var s = FLY_R;                                     // 视觉以碰撞半径为比例基准（碰撞语义不变）
+    var s = FLY_R;                                     // visuals scaled from collision radius (collision semantics unchanged)
 
-    // —— 头 + 红黑复眼 ——
+    // —— Head + red-black compound eyes ——
     var head = new THREE.Mesh(new THREE.SphereGeometry(s * 0.52, 14, 10), mat(0x241a16));
     head.position.set(0, s * 0.12, s * 1.05); g.add(head);
     var eyeMat = new THREE.MeshPhongMaterial({ map: EYE_TEX, shininess: 30 });
@@ -71,7 +71,7 @@
       eye.position.set(side * s * 0.4, s * 0.18, s * 1.02); eye.scale.set(0.8, 1, 1);
       g.add(eye);
     }
-    // 触角（2 根，前伸分节感）
+    // Antennae (2, forward-extended segmented feel)
     for (var ai = 0; ai < 2; ai++) {
       var asd = ai ? 1 : -1;
       var ant = new THREE.Mesh(new THREE.CylinderGeometry(0.02 * s, 0.03 * s, s * 1.1, 5), mat(0x1a1210));
@@ -79,13 +79,13 @@
       ant.rotation.set(Math.PI / 2.6, 0, asd * 0.35); g.add(ant);
     }
 
-    // —— 胸（黑褐，背板 + 侧板分节感）——
+    // —— Thorax (dark brown, scutum + pleura segmentation feel) ——
     var thorax = new THREE.Mesh(new THREE.SphereGeometry(s * 0.66, 14, 10), mat(0x4a3226));
     thorax.scale.set(0.95, 0.9, 1.15); thorax.position.set(0, s * 0.1, s * 0.1); g.add(thorax);
     var scut = new THREE.Mesh(new THREE.SphereGeometry(s * 0.4, 10, 8), mat(0x241812));
     scut.scale.set(1, 0.5, 1.2); scut.position.set(0, s * 0.5, s * 0.05); g.add(scut);
 
-    // —— 腹：分节（4 节递缩 + 环纹）——
+    // —— Abdomen: segmented (4 tapering segments + ring patterns) ——
     for (var bi = 0; bi < 4; bi++) {
       var r0 = s * (0.52 - bi * 0.085);
       var seg = new THREE.Mesh(new THREE.SphereGeometry(r0, 12, 9),
@@ -95,16 +95,16 @@
       g.add(seg);
     }
 
-    // —— 六足（每侧 3 条：基节-腿节 + 膝 + 胫节，含关节枢轴）——
+    // —— Six legs (3 per side: coxa-femur + knee + tibia, with joint pivots) ——
     g.userData.legs = [];
     for (var li = 0; li < 6; li++) {
       var side2 = li < 3 ? -1 : 1, row = li % 3;
-      var hip = new THREE.Group();                     // 髋关节枢轴
+      var hip = new THREE.Group();                     // hip joint pivot
       hip.position.set(side2 * s * 0.5, -s * 0.15, s * (0.5 - row * 0.55));
       hip.rotation.z = side2 * (0.75 + row * 0.12);
       var femur = new THREE.Mesh(new THREE.CylinderGeometry(0.035 * s, 0.03 * s, s * 0.9, 5), mat(0x1c1310));
       femur.position.y = -s * 0.45; hip.add(femur);
-      var knee = new THREE.Group();                    // 膝关节枢轴
+      var knee = new THREE.Group();                    // knee joint pivot
       knee.position.y = -s * 0.9;
       var tibia = new THREE.Mesh(new THREE.CylinderGeometry(0.025 * s, 0.014 * s, s * 1.0, 5), mat(0x120c0a));
       tibia.position.y = -s * 0.5; knee.add(tibia);
@@ -114,7 +114,7 @@
       g.userData.legs.push({ hip: hip, knee: knee, phase: li * 1.1, baseHip: hip.rotation.x, baseKnee: knee.rotation.x });
     }
 
-    // —— 翅（翅脉纹理膜；根部枢轴，翅振=绕根部摆动）——
+    // —— Wings (veined-texture membrane; root pivot, wing beat = swing around root) ——
     g.userData.wings = [];
     for (var wi = 0; wi < 2; wi++) {
       var wsd = wi ? 1 : -1;
@@ -128,7 +128,7 @@
       g.add(wing);
       g.userData.wings.push(wing);
     }
-    // 平衡棒（后翅退化为楫翅，一对小球）
+    // Halteres (hindwings reduced to balancers, a pair of small spheres)
     for (var hi = 0; hi < 2; hi++) {
       var hsd = hi ? 1 : -1;
       var hal = new THREE.Mesh(new THREE.SphereGeometry(s * 0.1, 6, 5), mat(0x8a6a3d));
@@ -137,20 +137,20 @@
     return shade(g);
   };
 
-  /* ================= 🚁 无人机 ================= */
+  /* ================= 🚁 Drone ================= */
   FX.buildDroneMesh = function () {
     var g = new THREE.Group();
     var bodyMat = mat(0x37485f), darkMat = mat(0x222b38), metalMat = new THREE.MeshPhongMaterial({ color: 0x93a7bd, shininess: 60 });
 
-    // —— 机身（碳纤维色 + 顶盖分层）——
+    // —— Fuselage (carbon-fiber color + layered top cover) ——
     var body = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.1, 2.2), bodyMat); g.add(body);
     var top = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.5, 1.6), mat(0x46597a));
     top.position.y = 0.75; g.add(top);
     var belly = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.4, 1.4), darkMat);
     belly.position.y = -0.7; g.add(belly);
 
-    // —— 四旋翼：X 形机臂 + 双叶桨 + 模糊盘 ——
-    g.userData.rotors = [];                            // 接口保持：world.html 旋翼动画
+    // —— Quad-rotor: X-shaped arms + dual-blade propellers + blur disc ——
+    g.userData.rotors = [];                            // interface preserved: world.html rotor animation
     g.userData.props = [];
     for (var i = 0; i < 4; i++) {
       var x = [2.4, 2.4, -2.4, -2.4][i], z = [2.4, -2.4, 2.4, -2.4][i];
@@ -159,7 +159,7 @@
       arm.position.set(x / 2, 0, z / 2); g.add(arm);
       var motor = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.42, 0.6, 10), metalMat);
       motor.position.set(x, 0.5, z); g.add(motor);
-      var prop = new THREE.Group();                    // 桨毂 + 双叶
+      var prop = new THREE.Group();                    // propeller hub + dual blades
       prop.position.set(x, 0.9, z);
       for (var b = 0; b < 2; b++) {
         var blade = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.045, 0.42), mat(0x1c2530));
@@ -171,13 +171,13 @@
       prop.add(hubc);
       var disc = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 1.45, 0.02, 20),
         new THREE.MeshLambertMaterial({ color: 0x8fa6bf, transparent: true, opacity: 0.22 }));
-      disc.position.y = 0.02; g.add(disc);             // 高速旋转模糊盘
+      disc.position.y = 0.02; g.add(disc);             // high-speed rotation blur disc
       g.add(prop);
       g.userData.rotors.push(prop);
       g.userData.props.push(prop);
     }
 
-    // —— 云台相机（前下俯仰）——
+    // —— Gimbal camera (forward-down pitch) ——
     var gimbal = new THREE.Group(); gimbal.position.set(0, -0.9, 1.1);
     var yawRing = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.08, 6, 14), darkMat);
     gimbal.add(yawRing);
@@ -191,7 +191,7 @@
     g.add(gimbal);
     g.userData.gimbal = gimbal;
 
-    // —— 指示灯：前白×2 / 后红×1 / 尾闪红×1（含夜航闪）——
+    // —— Indicator lights: front white×2 / rear red×1 / tail flashing red×1 (with night-flight blink) ——
     g.userData.leds = [];
     function led(color, x, y, z) {
       var l = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6),
@@ -200,9 +200,9 @@
     }
     led(0xffffff, 1.2, 0.2, 1.15); led(0xffffff, -1.2, 0.2, 1.15);
     led(0xff3344, 1.2, 0.2, -1.15); led(0xff3344, -1.2, 0.2, -1.15);
-    led(0xffaa22, 0, 0.3, -1.35);                     // 尾部橙闪
+    led(0xffaa22, 0, 0.3, -1.35);                     // tail orange blink
 
-    // —— 起落架 ——
+    // —— Landing gear ——
     for (var gi = 0; gi < 4; gi++) {
       var lx = [1.4, -1.4, 1.4, -1.4][gi], lz = [0.8, 0.8, -0.8, -0.8][gi];
       var leg = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.05, 1.2, 6), darkMat);
@@ -211,12 +211,12 @@
     return shade(g);
   };
 
-  /* ================= 🌦️ 四场景实质差异 ================= */
+  /* ================= 🌦️ Four Scene Substantive Differences ================= */
   var fx = null;
   FX.init = function (scene) {
     fx = { scene: scene };
 
-    // —— 云影（白日草浪云影）：柔斑大圆盘贴地漂移 ——
+    // —— Cloud shadows (daytime meadow with grass waves and cloud shadows): soft-patch large discs drifting along the ground ——
     fx.cloudShadows = new THREE.Group();
     for (var i = 0; i < 8; i++) {
       var m = new THREE.Mesh(new THREE.CircleGeometry(26 + Math.random() * 30, 20),
@@ -227,7 +227,7 @@
     }
     scene.add(fx.cloudShadows);
 
-    // —— 月亮 + 星空（黑夜萤火虫月光）——
+    // —— Moon + starry sky (nighttime with fireflies and moonlight) ——
     fx.nightSky = new THREE.Group();
     var moon = new THREE.Mesh(new THREE.SphereGeometry(22, 18, 14),
       new THREE.MeshBasicMaterial({ color: 0xf5f2df }));
@@ -247,7 +247,7 @@
     fx.nightSky.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xdfe8ff, size: 2.2, transparent: true, opacity: 0.9 })));
     scene.add(fx.nightSky);
 
-    // —— 萤火虫（暖黄绿闪烁 + 漫游）——
+    // —— Fireflies (warm yellow-green flickering + roaming) ——
     var ffGeo = new THREE.BufferGeometry();
     var ffPos = new Float32Array(140 * 3), ffSeed = new Float32Array(140);
     for (var fi = 0; fi < 140; fi++) {
@@ -263,7 +263,7 @@
     fx.fireflies.userData.seed = ffSeed;
     scene.add(fx.fireflies);
 
-    // —— 斜雨（暴风）：线段雨幕，带风向斜率 ——
+    // —— Slanted rain (storm): line-segment rain curtain with wind-direction slope ——
     var rGeo = new THREE.BufferGeometry();
     var RN = 700, rPos = new Float32Array(RN * 6);
     fx.rain = new THREE.LineSegments(rGeo, new THREE.LineBasicMaterial({ color: 0x9fc4e8, transparent: true, opacity: 0.5 }));
@@ -272,7 +272,7 @@
     rGeo.setAttribute('position', new THREE.BufferAttribute(rPos, 3));
     scene.add(fx.rain);
 
-    // —— 风线（暴风）：高速水平流线 ——
+    // —— Wind streaks (storm): high-speed horizontal streamlines ——
     var wGeo = new THREE.BufferGeometry();
     var WN = 130, wPos = new Float32Array(WN * 6);
     fx.streaks = new THREE.LineSegments(wGeo, new THREE.LineBasicMaterial({ color: 0xd8ecff, transparent: true, opacity: 0.35 }));
@@ -281,7 +281,7 @@
     wGeo.setAttribute('position', new THREE.BufferAttribute(wPos, 3));
     scene.add(fx.streaks);
 
-    // —— 气流粒子（大风）：流场平流的可视气流 ——
+    // —— Airflow particles (gale): visible airflow advected by the flow field ——
     var aGeo = new THREE.BufferGeometry();
     var AN = 520, aPos = new Float32Array(AN * 3);
     for (var ai = 0; ai < AN; ai++) {
@@ -301,7 +301,7 @@
     var o = i * 6;
     var x = Math.random() * 400 - 200, y = init ? Math.random() * 120 : 90 + Math.random() * 30, z = Math.random() * 400 - 200;
     p[o] = x; p[o + 1] = y; p[o + 2] = z;
-    p[o + 3] = x - 1.6; p[o + 4] = y - 3.4; p[o + 5] = z - 0.9;   // 斜率=风向（斜雨）
+    p[o + 3] = x - 1.6; p[o + 4] = y - 3.4; p[o + 5] = z - 0.9;   // slope = wind direction (slanted rain)
   }
   function resetStreak(p, i, init) {
     var o = i * 6;
@@ -311,7 +311,7 @@
     p[o + 3] = x - len; p[o + 4] = y; p[o + 5] = z - len * 0.35;
   }
 
-  // 场景开关（实质差异：各场景挂不同粒子系统）
+  // Scene switch (substantive differences: each scene attaches different particle systems)
   FX.setScene = function (name) {
     if (!fx) return;
     fx.cloudShadows.visible = (name === 'meadow');
@@ -322,7 +322,7 @@
     fx.airflow.visible = (name === 'gale');
   };
 
-  // 逐帧动画
+  // Per-frame animation
   FX.update = function (now, dtMs, name) {
     if (!fx) return;
     var t = now * 0.001;
@@ -338,7 +338,7 @@
         p.array[i * 3 + 2] += Math.cos(t * 0.6 + seed[i] * 0.7) * 0.012 * dtMs * 0.06;
       }
       p.needsUpdate = true;
-      fx.fireflies.material.opacity = 0.55 + 0.4 * Math.abs(Math.sin(t * 2.2));   // 群体闪烁
+      fx.fireflies.material.opacity = 0.55 + 0.4 * Math.abs(Math.sin(t * 2.2));   // swarm flickering
     }
     if (fx.rain.visible) {
       var rp = fx.rain.userData.pos, RN2 = fx.rain.userData.n;
@@ -363,7 +363,7 @@
       var ap = fx.airflow.geometry.attributes.position;
       for (var a = 0; a < ap.count; a++) {
         var x = ap.array[a * 3], y = ap.array[a * 3 + 1], z = ap.array[a * 3 + 2];
-        // 无散度流场（正弦剪切）平流——可视气流
+        // Divergence-free flow field (sine shear) advection — visible airflow
         var vx2 = 0.055 * dtMs * (1 + 0.5 * Math.sin(y * 0.25 + t * 0.8));
         var vz2 = 0.03 * dtMs * Math.sin(x * 0.05 + t * 0.6);
         x -= vx2; z -= vz2; y += 0.004 * dtMs * Math.sin(x * 0.08 + z * 0.05 + t);
@@ -374,7 +374,7 @@
       }
       ap.needsUpdate = true;
     }
-    // 月夜恒定辉光呼吸
+    // Moonlit night constant glow breathing
     if (fx.nightSky.visible) fx.nightSky.children[1].material.opacity = 0.18 + 0.06 * Math.sin(t * 0.8);
   };
 

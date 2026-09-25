@@ -1,38 +1,38 @@
-# v4 阶段 A 任务计划（数据升级 + 防过拟合）
+# v4 Phase A Task Plan (Data Upgrade + Overfitting Prevention)
 
-> 铁律：**只允许读 v4\ 以外文件，绝不修改 v4\ 以外任何文件**（v3 已冻结）。
-> web\results.json 的 SHA256 必须保持 `0E1339A088EF3B5820DCA342B989249403BE41D5A3F7EDB9DDB1D1A91C217E9E`。
+> Iron rule: **only read files outside v4\ is allowed; never modify any file outside v4\** (v3 is frozen).
+> web\results.json SHA256 must remain `0E1339A088EF3B5820DCA342B989249403BE41D5A3F7EDB9DDB1D1A91C217E9E`.
 
-## 目标声明
-治 v3 三大弱点（黑夜召回 0.932→0.634、高速误报 FAR 0.210→0.545、暴风方向 30.7°）+ 过拟合体检；
-一次只改数据（架构/标签/决策窗/损失/激活边界 `>0` 与 train_snn.py 逐位一致）。
+## Goal Statement
+Fix v3's three major weaknesses (night recall 0.932→0.634, high-speed false alarm FAR 0.210→0.545, storm direction 30.7°) + overfitting checkup;
+only modify data per phase (architecture / labels / decision window / loss / activation boundary `>0` identical to train_snn.py bit-for-bit).
 
-## 阶段
-| # | 内容 | 状态 |
-|---|------|------|
-| 1 | 建 v4\ 与规划文件 | in_progress |
-| 2 | v4\train_snn_v4.py（5 万样本目标、高斯噪声 0–0.05、模态 dropout 10–15%、OOD 2000、3 种子、wd=1e-4、早停、train/val 曲线、断点续训） | pending |
-| 3 | 测速定规模（太慢可降到 2–3 万，测速结果写报告） | pending |
-| 4 | Start-Process 分离后台跑 3 种子（优先 20240521），v4\TRAIN_STATE.md 记进度/恢复命令 | pending |
-| 5 | v4\make_web_data_v4.py、v4\evaluate_v4.js（输出 v4\results_v4.json 等，绝不覆盖 web\ 产物） | pending |
-| 6 | 评估：融合/纯视觉/纯风觉 + 分场景 + OOD 单列 + 过拟合体检 | pending |
-| 7 | v4\REPORT_v4.md（与 v3 逐项对比 mean±std ddof=1，退步如实写） | pending |
-| 8 | 收尾自检：node web\smoke_test.js 全过 + SHA256 校验写进报告 | pending |
+## Phases
+| # | Content | Status |
+|---|---------|--------|
+| 1 | Create v4\ and planning files | in_progress |
+| 2 | v4\train_snn_v4.py (50K sample target, Gaussian noise 0–0.05, modality dropout 10–15%, OOD 2000, 3 seeds, wd=1e-4, early stopping, train/val curves, checkpoint resume) | pending |
+| 3 | Speed test to determine scale (can reduce to 20–30K if too slow; write speed test results to report) | pending |
+| 4 | Start-Process to run 3 seeds in background (seed 20240521 priority); v4\TRAIN_STATE.md records progress / resume commands | pending |
+| 5 | v4\make_web_data_v4.py, v4\evaluate_v4.js (output v4\results_v4.json etc., never overwrite web\ artifacts) | pending |
+| 6 | Evaluation: fusion / vision only / wind only + per-scenario + OOD standalone + overfitting checkup | pending |
+| 7 | v4\REPORT_v4.md (item-by-item comparison with v3, mean±std ddof=1, regressions reported honestly) | pending |
+| 8 | Wrap-up self-check: node web\smoke_test.js all pass + SHA256 verification written into report | pending |
 
-## 不许动的口径（与 v3 一致）
-- 触发 = GF 首次放电步 < 12（T=12 步、dt=1ms、β=0.85、Vth=1.0、软复位、激活边界 `>0`）
-- 标签 = ṙ<0 且 ttc<50ms 且 r<25cm；逃逸方向 = −r̂
-- 损失 = 0.5·BCE(头) + 0.5·方向余弦(带 yTrig 掩码，本次不动) + 2e-3·rate·T + 0.6·GF放电BCE(pos_weight=2.5)
-- 方向口径与物理积分口径分列不混用
+## Metrics That Must Not Change (consistent with v3)
+- Trigger = GF first fire step < 12 (T=12 steps, dt=1ms, β=0.85, Vth=1.0, soft reset, activation boundary `>0`)
+- Labels = ṙ<0 AND ttc<50ms AND r<25cm; escape direction = −r̂
+- Loss = 0.5·BCE(head) + 0.5·direction cosine (with yTrig mask, untouched this phase) + 2e-3·rate·T + 0.6·GF firing BCE (pos_weight=2.5)
+- Direction metric and physical integration metric reported separately, never mixed
 
-## v4 允许的改动（只改数据/正则）
-1. 训练样本 5000 → 50000（慢则 2–3 万）
-2. 输入增强：高斯噪声 σ∈[0,0.05]（可调）+ 模态 dropout p=0.12（整通道置零，随机缺视觉或风觉）
-3. OOD 测试集 2000 条（明显偏移参数；训练/验证禁用）
-4. 训练种子 20240521/20240522/20240523，报 mean±std(ddof=1)
-5. 权重衰减 1e-4 + 早停（盯验证损失）+ train/val 损失曲线（过拟合体检）
+## v4 Allowed Changes (data/regularization only)
+1. Training samples 5000 → 50000 (can reduce to 20–30K if too slow)
+2. Input augmentation: Gaussian noise σ∈[0,0.05] (tunable) + modality dropout p=0.12 (zero out entire channel, randomly drop vision or wind)
+3. OOD test set 2000 samples (significantly shifted parameters; forbidden in training/validation)
+4. Training seeds 20240521/20240522/20240523, report mean±std (ddof=1)
+5. Weight decay 1e-4 + early stopping (monitor validation loss) + train/val loss curves (overfitting checkup)
 
-## 遇到的错误
-| 错误 | 尝试次数 | 解决方案 |
-|------|---------|---------|
-| （待记） | | |
+## Errors Encountered
+| Error | Attempt Count | Resolution |
+|-------|---------------|------------|
+| (To be recorded) | | |

@@ -1,34 +1,34 @@
-# 任务计划：果蝇脑开无人机（模拟版）+ GitHub 开源项目
+# Task Plan: Fruit Fly Brain Flies a Drone (Simulation) + GitHub Open Source Project
 
-> 目标：把现在的"果蝇脑=逃逸决策"升级为"果蝇脑持续驾驶无人机飞行（3D 模拟）"，
-> 并打包成可发布的 GitHub 项目。v4\ 的训练计划已完结（见 v4\task_plan.md，历史存档）。
+> Goal: upgrade the current "fruit fly brain = escape decision" to "fruit fly brain continuously pilots a drone flight (3D simulation)",
+> and package it as a publishable GitHub project. The v4\ training plan has been completed (see v4\task_plan.md, archived for history).
 
-## 目标声明
-1. 模拟版"果蝇脑开无人机"：大脑持续在线——巡航、避障、逃逸、降落；无人机有真实飞行动力学（质量/升力/阻力/姿态），不是瞬移。
-2. GitHub 项目：README（双语+动图）+ LICENSE + 可复现说明 + GitHub Pages 在线演示。
-3. 铁律不变：SNN 数值口径不动（web\results.json SHA256=`0E1339A0…71E9E`、jitter `5C66B3D0…072AE`）；飞手随时接管优先级最高；file:// 双击可用。
+## Goal Statement
+1. Simulation version of "fruit fly brain flies a drone": brain stays online continuously — cruising, obstacle avoidance, escape, landing; drone has real flight dynamics (mass/lift/drag/attitude), not teleportation.
+2. GitHub project: README (bilingual + demo GIF) + LICENSE + reproducibility instructions + GitHub Pages online demo.
+3. Iron rules unchanged: SNN metrics unchanged (web\results.json SHA256=`0E1339A0…71E9E`, jitter `5C66B3D0…072AE`); pilot takeover has highest priority at all times; file:// double-click usable.
 
-## 现状盘点（已核实 2026-09-23）
-- web\world.html:286 `brain: new SNNRuntime(...)`；:466 driveAgent；:512 `escapeVec = Vector3(o0,o2,o1)`（y/z 映射已做）；:526-528 `vel += escapeVec*accel*dtMs`（加速度直推，无动力学）。
-- 已有：连接组大脑（1871 神经元/45524 边）、3D 世界、换体、逃逸决策、大脑面板（brain_panel.js）、精细建模（scene_fx.js）、精准攻击、飞手接管。
-- 缺口：①无飞行动力学（无质量/升力/姿态）②无适配层（脑→电机）③大脑只在威胁时输出（无巡航）④无 GitHub 包装。
+## Current Status (verified 2026-09-23)
+- web\world.html:286 `brain: new SNNRuntime(...)`; :466 driveAgent; :512 `escapeVec = Vector3(o0,o2,o1)` (y/z mapping done); :526-528 `vel += escapeVec*accel*dtMs` (acceleration direct push, no dynamics).
+- Existing: connectome brain (1871 neurons / 45524 edges), 3D world, cross-platform swap, escape decision, brain panel (brain_panel.js), detailed effects (scene_fx.js), precision attacks, pilot takeover.
+- Gaps: ① No flight dynamics (no mass/lift/attitude) ② No adaptation layer (brain → motor) ③ Brain only outputs during threats (no cruise mode) ④ No GitHub packaging.
 
-## 阶段
-| # | 内容 | 交付物 | 状态 |
-|---|------|--------|------|
-| 1 | 飞行动力学 drone_physics.js：质量/升力/阻力/重力/姿态四元数积分；4 电机转速→推力+力矩；悬停/加速/姿态响应自测 | drone_physics.js + 自测脚本 | pending |
-| 2 | 控制适配层 drone_adapter.js：GF 爆发→油门阶跃、逃逸方向→期望倾角→PID 姿态环→混控→4 电机；飞手接管旁路保留 | drone_adapter.js | pending |
-| 3 | 持续飞行：巡航（慢速游荡）、避障（LPLC2 连续感知→转向）、逃逸（现有）、降落；HUD 加电机转速/姿态角 | world.html 更新 | pending |
-| 4 | 回归：smoke_test 扩展（悬停稳定/逃逸响应/接管延迟）+ 三件套哈希锚点 + world.html 语法 | 回归记录 | pending |
-| 5 | GitHub 打包：LICENSE(MIT)、.gitignore、README 双语（架构图+指标表+动图占位）、复现说明、Pages 部署说明 | repo 就绪 | pending |
-| 6 | （可选）演示动图/录屏 + 外宣文案 | GIF/文案 | pending |
+## Phases
+| # | Content | Deliverables | Status |
+|---|---------|-------------|--------|
+| 1 | Flight dynamics drone_physics.js: mass/lift/drag/gravity/attitude quaternion integration; 4 motor speeds → thrust + torque; hover/acceleration/attitude response self-tests | drone_physics.js + self-test script | pending |
+| 2 | Control adaptation layer drone_adapter.js: GF burst → throttle step, escape direction → desired tilt angle → PID attitude loop → mixing → 4 motors; pilot takeover bypass preserved | drone_adapter.js | pending |
+| 3 | Continuous flight: cruise (slow wandering), obstacle avoidance (LPLC2 continuous sensing → steering), escape (existing), landing; HUD adds motor speed / attitude angle | world.html update | pending |
+| 4 | Regression: smoke_test expansion (hover stability / escape response / takeover latency) + three-piece hash anchors + world.html syntax | Regression record | pending |
+| 5 | GitHub packaging: LICENSE (MIT), .gitignore, bilingual README (architecture diagram + metrics table + demo GIF placeholder), reproducibility instructions, Pages deployment guide | Repo ready | pending |
+| 6 | (Optional) Demo GIF / screen recording + promotional copy | GIF / copy | pending |
 
-## 诚实边界（README 必须写明）
-- 巡航/避障的"转向偏好"是程序基线+神经逃逸混合，不是全神经生成（全神经巡航=完整果蝇路线阶段 2，见 v4\full-fly-design.md）。
-- 飞行动力学参数为演示级（小四旋翼典型值），未做真机标定。
-- 脑的输出是"逃逸方向向量"，适配层把它翻译成电机指令（生物对应：脑→胸神经节→飞行肌）。
+## Honest Boundaries (README must state)
+- Cruise / obstacle avoidance "steering preference" is a programmatic baseline + neural escape hybrid, not fully neural-generated (full neural cruise = complete fruit fly route Phase 2, see v4\full-fly-design.md).
+- Flight dynamics parameters are demo-grade (typical small quadcopter values), not calibrated for real hardware.
+- Brain output is an "escape direction vector"; the adaptation layer translates it into motor commands (biological analogy: brain → thoracic ganglion → flight muscle).
 
-## 遇到的错误
-| 错误 | 尝试次数 | 解决方案 |
-|------|----------|----------|
-| （待记） | | |
+## Errors Encountered
+| Error | Attempt Count | Resolution |
+|-------|---------------|------------|
+| (To be recorded) | | |
