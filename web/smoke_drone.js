@@ -54,7 +54,7 @@ console.log('==== Drone Physics + Adapter Layer Self-Test (Phase 4) ====');
   const ad = new DroneAdapter({ rng: DroneAdapter.makeRng(7) });
   for (let i = 0; i < 10; i++) p.update(0.016, ad.update({ triggered: true, escapeDir: [1, 0, 0] }, stOf(p), 16, false));
   const m = ad.update(null, stOf(p), 16, true);      // The frame when pilot takes over
-  const bypassOK = ad.lastStateCN === '飞手' && m.every(v => v === 0);
+  const bypassOK = ad.lastStateCN === '' && m.every(v => v === 0);
   const html = fs.readFileSync(path.join(__dirname, 'world.html'), 'utf8');
   const keydownOK = /addEventListener\('keydown'[\s\S]{0,600}?selAgent\.bionic = false;/.test(html);
   const gateOK = /function ensureDronePhys\(a\)[\s\S]{0,240}?a\.kind === 'drone' && DRONE_PHYS_ON && a\.bionic/.test(html);
@@ -66,7 +66,7 @@ console.log('==== Drone Physics + Adapter Layer Self-Test (Phase 4) ====');
 {
   const s = DronePhysics.selfTest();
   console.log('  ' + s);
-  chk(/\[PASS\]/.test(s) && !/\[FAIL\]/.test(s) && /总评 PASS/.test(s), 'DronePhysics.selfTest() All PASS');
+  chk(/\[PASS\]/.test(s) && !/\[FAIL\]/.test(s) && / PASS/.test(s), 'DronePhysics.selfTest() All PASS');
 }
 
 console.log(`\n==== Self-Test: ${pass}/4 Passed ====`);

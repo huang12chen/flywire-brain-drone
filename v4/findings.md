@@ -27,14 +27,14 @@
 
 ## Seed 20240521 Quick Results (full numbers in v4\metrics_seed20240521.json / v4\results_v4.json)
 - Training ran full 25 epochs (early stopping not triggered, val best at ep25=0.6861, still improving → 25 epoch cap is the constraint); train 0.97→0.83;
-  gap (train−val)全程 +0.10~+0.20 (augmentation makes training distribution harder; not overfitting — val keeps decreasing).
+  gap (train−val) +0.10~+0.20 (augmentation makes training distribution harder; not overfitting — val keeps decreasing).
 - Python validation 1200 (clean encoding): fusion 0.762/0.773/18.9°/6.99ms (v3: 0.799/0.903/10.7°/7.65ms)
   → trigger / success rate / direction **regressed**, latency **faster**; vision only 0.783/0.681/20.2°/7.48ms (v3 0.801/0.787/18.4°/7.60);
   wind only 0.570/0.092/46.4°/7.65ms (v3 0.527/0.000/68.0°/zero fires) → **qualitative change: first time discriminative** (recall 0.141/FAR 0.044).
 - JS matrix (5 eval seeds × 200): storm success 0.531→0.771, direction 30.7°→20.8° (**significant improvement**); night recall 0.634→0.624 (≈no improvement);
   high-speed FAR 0.545→0.510 (slightly better); clear fusion success 0.926→0.790, direction 10.6°→18.9° (**regressed**); latency universally ~0.5–0.8ms faster.
 - Priming: weak vision 0.017 / weak wind 0.167 / weak stacked 0.283 (v3: 0/0/0.017) → cross-modal pre-activation **restored**.
-- OOD 2000: fusion 0.592/0.520/30.0°/6.09ms, recall 0.970 / FAR 0.770 (high recall but high false alarm; discriminative ability受损 under distribution shift).
+- OOD 2000: fusion 0.592/0.520/30.0°/6.09ms, recall 0.970 / FAR 0.770 (high recall but high false alarm; discriminative ability under distribution shift).
 - Mechanistic interpretation (for report): modality dropout + noise pushes the network from "vision-dominant" toward "dual-modality redundancy," trading clean-set direction accuracy (10.7°→18.9°) and success rate for storm / wind-only / priming / latency improvements — a classic robustness-accuracy tradeoff; Phase B suggestions:
   ① direction loss conditioned on modality or grouped learning rates; ② dropout probability annealing (0.12 in first 10 epochs → 0.05 later); ③ extend epochs (val still decreasing at ep25);
   ④ night requires visGain domain randomization (not done this phase because "data-only changes" list did not include environmental augmentation).

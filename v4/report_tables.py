@@ -114,9 +114,9 @@ def main():
         return None
 
     scen = {}
-    for cid, label in (('B1', '晴(meadow)'), ('B2', '暴风(storm)'), ('B3', '黑夜(night)'),
-                       ('C1', '低速 slow'), ('C2', '中速 mid'), ('C3', '高速 high'),
-                       ('A1', '融合 fusion'), ('A2', '纯视觉'), ('A3', '纯风觉')):
+    for cid, label in (('B1', '(meadow)'), ('B2', '(storm)'), ('B3', '(night)'),
+                       ('C1', ' slow'), ('C2', ' mid'), ('C3', ' high'),
+                       ('A1', ' fusion'), ('A2', ''), ('A3', '')):
         entry = {'label': label, 'v3': {}, 'v4_main_seed20240521': {}, 'v4_3trainseeds': {}}
         c3 = cell(res_v3, cid)
         c4m = cell(res_v4[20240521], cid)
@@ -134,7 +134,7 @@ def main():
 
     # ---------- 4. Group D (physical integration metrics, separate columns) ----------
     dgrp = {}
-    for cid, label in (('D1', '果蝇身体'), ('D2', '无人机身体')):
+    for cid, label in (('D1', ''), ('D2', '')):
         e = {'label': label, 'v3': {}, 'v4_main_seed20240521': {}, 'v4_3trainseeds': {}}
         c3 = cell(res_v3, cid)
         c4m = cell(res_v4[20240521], cid)
@@ -170,7 +170,7 @@ def main():
     print('### T1 Validation Set 1200 samples (3 training seeds mean±std, ddof=1)')
     print('| Group | Trigger Acc(GF) | Trigger Acc(Head) | Escape Success | Direction Error(°) | GF Latency(ms) |')
     print('|---|---|---|---|---|---|')
-    for mode, zh in (('fusion', '融合'), ('vision_only', '纯视觉'), ('wind_only', '纯风觉')):
+    for mode, zh in (('fusion', ''), ('vision_only', ''), ('wind_only', '')):
         r = rows['results'][mode]
         print(f"| {zh} | {fmt_pair(r['trigger_acc_gf_spike'],3)} | {fmt_pair(r['trigger_acc_head'],3)} | "
               f"{fmt_pair(r['escape_success_rate'],3)} | {fmt_pair(r['dir_mae_deg'],1)} | {fmt_pair(r['gf_first_spike_ms'],2)} |")
@@ -178,7 +178,7 @@ def main():
     print('\n### T2 OOD Set 2000 samples (3 training seeds mean±std, ddof=1)')
     print('| Group | Trigger Acc(GF) | Escape Success | Direction Error(°) | GF Latency(ms) | Recall | False Alarm FAR |')
     print('|---|---|---|---|---|---|---|')
-    for mode, zh in (('fusion', '融合'), ('vision_only', '纯视觉'), ('wind_only', '纯风觉')):
+    for mode, zh in (('fusion', ''), ('vision_only', ''), ('wind_only', '')):
         r = rows['ood_2000'][mode]
         print(f"| {zh} | {fmt_pair(r['trigger_acc_gf_spike'],3)} | {fmt_pair(r['escape_success_rate'],3)} | "
               f"{fmt_pair(r['dir_mae_deg'],1)} | {fmt_pair(r['gf_first_spike_ms'],2)} | "

@@ -7,7 +7,7 @@ Differences from v3 train_snn.py (bit-identical otherwise):
   2) Input augmentation (training only): Gaussian noise σ~U(0, NOISE_STD=0.05) added to visual/wind firing probabilities (adjustable),
      and P_DROP=0.12 probability of zeroing out entire modality (randomly drop vision or wind, 6% each);
   3) OOD test set of 2000 samples: clearly shifted parameters generated separately (see sample_threat_ood / build_ood_dataset),
-     never used in any training/validation环节 (only listed separately in final evaluation);
+     never used in any training/validation (only listed separately in final evaluation);
   4) 3 training seeds (20240521/20240522/20240523), validation/OOD sets fixed across seeds, report mean±std(ddof=1);
   5) Regularization: Adam weight_decay=1e-4; early stopping monitors **validation loss** (PATIENCE=6, minimum MIN_EPOCHS=8);
      Each epoch records train/val loss curves (overfitting health check = train-val gap); checkpoint saved each epoch, supports --resume for checkpoint continuation;
