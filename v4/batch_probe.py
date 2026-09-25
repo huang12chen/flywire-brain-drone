@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""batch_probe.py —— 定位训练批次耗时异常（与 speed_test 同法计时，输出到 stdout）"""
+"""batch_probe.py —— Profile training batch timing anomalies (same method as speed_test, output to stdout)"""
 import os
 import sys
 import time

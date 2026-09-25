@@ -178,9 +178,9 @@ const ground = new THREE.Mesh(
   new THREE.CircleGeometry(700, 48),
   new THREE.MeshLambertMaterial({ color: 0x69b34c }));
 ground.rotation.x = -Math.PI / 2; scene.add(ground);
-ground.receiveShadow = true;                           // v5 光影升级：地面接影
+ground.receiveShadow = true;                           // v5 lighting upgrade: ground receives shadows
 
-// 远山
+// Distant mountains
 const mtnMat = new THREE.MeshLambertMaterial({ color: 0x6f8bb0 });
 for (let i = 0; i < 14; i++) {
   const a = i / 14 * Math.PI * 2, d = 520 + Math.random() * 120;
@@ -188,7 +188,7 @@ for (let i = 0; i < 14; i++) {
   m.position.set(Math.cos(a) * d, 40, Math.sin(a) * d); scene.add(m);
 }
 
-// 云
+// Clouds
 const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
 const clouds = [];
 for (let i = 0; i < 7; i++) {
@@ -201,7 +201,7 @@ for (let i = 0; i < 7; i++) {
   scene.add(c); clouds.push(c);
 }
 
-// 草地（InstancedMesh + 顶点着色器风摆）
+// Grass (InstancedMesh + vertex shader wind sway)
 const GRASS_N = 6000;
 const blade = new THREE.PlaneGeometry(0.35, 2.6, 1, 3);
 blade.translate(0, 1.3, 0);
@@ -228,7 +228,7 @@ for (let i = 0; i < GRASS_N; i++) {
 }
 scene.add(grass);
 
-// 花与蘑菇
+// Flowers and mushrooms
 const flowerGeo = new THREE.SphereGeometry(0.5, 8, 6);
 for (let i = 0; i < 130; i++) {
   const col = [0xffd479, 0xff8896, 0xb28dff, 0xffffff][i % 4];
@@ -247,7 +247,7 @@ for (let i = 0; i < 14; i++) {
   m.position.set(Math.cos(a) * d, 0, Math.sin(a) * d); scene.add(m);
 }
 
-// 树
+// Trees
 const trunkMat = new THREE.MeshLambertMaterial({ color: 0x8a5a33 });
 const leafMat = new THREE.MeshLambertMaterial({ color: 0x3f8f4a });
 const trees = [];
@@ -264,7 +264,7 @@ for (let i = 0; i < 16; i++) {
   t.position.set(Math.cos(a) * d, 0, Math.sin(a) * d); scene.add(t); trees.push(t);
 }
 
-// 池塘
+// Pond
 const pond = new THREE.Mesh(new THREE.CircleGeometry(34, 36),
   new THREE.MeshLambertMaterial({ color: 0x4aa3d8, transparent: true, opacity: 0.85 }));
 pond.rotation.x = -Math.PI / 2; pond.position.set(-70, 0.15, 55); scene.add(pond);
@@ -277,7 +277,7 @@ for (let i = 0; i < 8; i++) {
   l.position.set(-70 + Math.cos(a) * d, 0.3, 55 + Math.sin(a) * d); scene.add(l); lilies.push(l);
 }
 
-// 花粉/萤火虫粒子
+// Pollen/firefly particles
 const PCOUNT = 260;
 const pGeo = new THREE.BufferGeometry();
 const pPos = new Float32Array(PCOUNT * 3);
@@ -288,30 +288,30 @@ pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
 const pollen = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xfff3b0, size: 0.7, transparent: true, opacity: 0.8 }));
 scene.add(pollen);
 
-/* ---------- 载体（果蝇 / 无人机）—— v5 精修模型在 scene_fx.js ---------- */
-function buildFlyMesh() { return FX.buildFlyMesh(FLY_R); }      // 红黑复眼+六足关节+翅脉翅振+胸腹分节
-function buildDroneMesh() { return FX.buildDroneMesh(); }       // 四旋翼桨叶+云台+指示灯
+/* ---------- Body (Fruit Fly / Drone) — v5 refined models in scene_fx.js ---------- */
+function buildFlyMesh() { return FX.buildFlyMesh(FLY_R); }      // red-black compound eyes + six-leg joints + wing veins & flapping + thorax/abdomen segments
+function buildDroneMesh() { return FX.buildDroneMesh(); }       // quadcopter blades + gimbal + indicator lights
 
 const agents = []; let selAgent = null;
 function addAgent(kind, x, z) {
   const spec = BODIES[kind];
   const mesh = kind === 'fly' ? buildFlyMesh() : buildDroneMesh();
-  mesh.position.set(x ?? (Math.random() * 60 - 30), kind === 'fly' ? 8 : 14, z ?? (Math.random() * 60 - 30));   // ?? 保证 (0,0) 不被当缺省
+  mesh.position.set(x ?? (Math.random() * 60 - 30), kind === 'fly' ? 8 : 14, z ?? (Math.random() * 60 - 30));   // ?? ensures (0,0) not treated as default
   scene.add(mesh);
   const a = {
     kind, spec, mesh, brain: new SNNRuntime(window.SNN_DATA),
     vel: new THREE.Vector3(), goalDir: new THREE.Vector3(1, 0, 0),
-    bionic: true, mode: '仿生', escaped: false, lastDecision: 0, wanderT: 0,
+    bionic: true, mode: 'Bionic', escaped: false, lastDecision: 0, wanderT: 0,
     stats: { rounds: 0, esc: 0, hit: 0, fa: 0, angSum: 0, angN: 0 },
     manualKeys: {}, wingT: Math.random() * 6,
   };
   agents.push(a); refreshAgentList(); selectAgent(a);
-  toast(`${spec.name} 已加入世界（${a.bionic ? '仿生' : '手动'}模式）`);
+  toast(`${spec.name} joined the world (${a.bionic ? 'Bionic' : 'Manual'} mode)`);
   return a;
 }
 function selectAgent(a) {
   selAgent = a; refreshAgentList();
-  document.getElementById('bMode').textContent = a.bionic ? '🤖 仿生（点击切手动）' : '🛫 手动（点击切仿生）';   // 同步按钮文案，防与实际模式不符
+  document.getElementById('bMode').textContent = a.bionic ? '🤖 Bionic (click to switch manual)' : '🛫 Manual (click to switch bionic)';   // sync button text to match actual mode
 }
 function refreshAgentList() {
   const sel = document.getElementById('selAgent');
@@ -319,33 +319,33 @@ function refreshAgentList() {
     `<option value="${i}" ${a === selAgent ? 'selected' : ''}>#${i + 1} ${a.spec.name}</option>`).join('');
 }
 document.getElementById('selAgent').onchange = (e) => selectAgent(agents[+e.target.value]);
-document.getElementById('bBrain').onclick = () => window.BrainPanel && BrainPanel.toggle();   // 🧠 大脑面板开关
+document.getElementById('bBrain').onclick = () => window.BrainPanel && BrainPanel.toggle();   // 🧠 brain panel toggle
 document.getElementById('bBrainX').onclick = () => window.BrainPanel && BrainPanel.toggle();
 document.getElementById('bAddFly').onclick = () => addAgent('fly');
 document.getElementById('bAddDrone').onclick = () => addAgent('drone');
 document.getElementById('bDel').onclick = () => {
   if (!selAgent) return; scene.remove(selAgent.mesh);
   agents.splice(agents.indexOf(selAgent), 1); selAgent = agents[0] || null;
-  if (selAgent) { selectAgent(selAgent); }        // 删除后同步 bMode 文案与选中态（手册承诺"按钮文字随之变化"）
+  if (selAgent) { selectAgent(selAgent); }        // sync bMode text after delete (manual promises "button text follows selection")
   else {
     refreshAgentList();
-    document.getElementById('bMode').textContent = '—（无个体）';
+    document.getElementById('bMode').textContent = '— (No Agent)';
   }
 };
 document.getElementById('bFly').onclick = () => swapBody('fly');
 document.getElementById('bDrone').onclick = () => swapBody('drone');
 function swapBody(kind) {
   if (!selAgent || selAgent.kind === kind) return;
-  const keepPos = selAgent.mesh.position.clone();   // 原地换装（旧 bug：agent 无 pos 字段，曾瞬移回中心）
+  const keepPos = selAgent.mesh.position.clone();   // swap body in place (old bug: agent had no pos field, teleported to center)
   scene.remove(selAgent.mesh);
   selAgent.kind = kind; selAgent.spec = BODIES[kind];
   selAgent.mesh = kind === 'fly' ? buildFlyMesh() : buildDroneMesh();
   selAgent.mesh.position.copy(keepPos);
   scene.add(selAgent.mesh);
-  toast(`换装完成：${BODIES[kind].name}（同一个大脑，新的身体）`);
+  toast(`Body swap complete: ${BODIES[kind].name} (same brain, new body)`);
 }
 
-/* ---------- 场景/天气切换 ---------- */
+/* ---------- Scene/Weather Switching ---------- */
 document.querySelectorAll('[data-scene]').forEach(btn => btn.onclick = () => {
   document.querySelectorAll('[data-scene]').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
@@ -354,30 +354,30 @@ document.querySelectorAll('[data-scene]').forEach(btn => btn.onclick = () => {
   scene.fog = new THREE.Fog(w.fog, 120, 700);
   sky.material.uniforms.top.value.set(weather === 'night' ? 0x0a1224 : 0x4a90d9);
   sky.material.uniforms.bottom.value.set(weather === 'night' ? 0x131e33 : w.fog);
-  sun.intensity = w.sun; sun.color.set(w.sunColor);    // v5：日光/月光色温区分
+  sun.intensity = w.sun; sun.color.set(w.sunColor);    // v5: sunlight/moonlight color temperature distinction
   ambient.intensity = weather === 'night' ? 0.22 : (weather === 'storm' ? 0.42 : 0.55);
   hemi.intensity = weather === 'night' ? 0.10 : (weather === 'storm' ? 0.18 : 0.28);
   ground.material.color.set(w.grass); grassMat.color.set(w.grass);
   pond.material.color.set(weather === 'night' ? 0x1d3a55 : 0x4aa3d8);
-  pollen.visible = (weather === 'meadow');             // 花粉只在白日草原
-  if (window.FX) FX.setScene(weather);                 // v5 四场景实质差异（云影/萤火虫月光/斜雨风线/气流粒子）
+  pollen.visible = (weather === 'meadow');             // pollen only in sunny meadow
+  if (window.FX) FX.setScene(weather);                 // v5 four-scene differences (cloud shadows/firefly moonlight/diagonal rain wind streaks/airflow particles)
   document.getElementById('mScene').textContent = w.name;
   document.getElementById('mWeather').textContent =
-    weather === 'storm' ? '暴风雨' : (weather === 'gale' ? '干风' : (weather === 'night' ? '月夜' : '晴'));
-  toast(`切换场景：${w.name}`);
+    weather === 'storm' ? 'Storm' : (weather === 'gale' ? 'Dry Wind' : (weather === 'night' ? 'Moonlit Night' : 'Sunny'));
+  toast(`Scene switched: ${w.name}`);
 });
 scene.fog = new THREE.Fog(0xbfd9ec, 120, 700);
 
-/* ---------- 威胁 ---------- */
+/* ---------- Threats ---------- */
 const threats = [];
-let missRange = 0;                                   // v5 P4：脱靶量范围 0=精准（默认）↔ 1=宽松
+let missRange = 0;                                   // v5 P4: miss range 0=precision (default) ↔ 1=loose
 document.getElementById('rMiss').oninput = (e) => {
   missRange = +e.target.value / 100;
-  document.getElementById('mMiss').textContent = missRange < 0.34 ? '精准' : (missRange < 0.67 ? '适中' : '宽松');
+  document.getElementById('mMiss').textContent = missRange < 0.34 ? 'Precision' : (missRange < 0.67 ? 'Medium' : 'Loose');
 };
 function spawnThreat(kind, target) {
   target = target || selAgent || agents[0];
-  if (!target) { toast('先放一只果蝇或无人机'); return null; }
+  if (!target) { toast('Add a fruit fly or drone first'); return null; }
   const s = kind === 'ball' ? 1.6 : (kind === 'frog' ? 2.2 : 1.2);
   let mesh, from, speed;
   if (kind === 'ball') {
@@ -397,7 +397,7 @@ function spawnThreat(kind, target) {
     }
     const az = Math.random() * Math.PI * 2, d0 = 40 + Math.random() * 15;
     from = new THREE.Vector3(Math.cos(az) * d0, 1.5, Math.sin(az) * d0);
-    speed = 0.5 + Math.random() * 0.3;   // 弹舌快
+    speed = 0.5 + Math.random() * 0.3;   // tongue strike is fast
   } else {
     mesh = new THREE.Group();
     const b = new THREE.Mesh(new THREE.ConeGeometry(0.7, 4, 8), new THREE.MeshLambertMaterial({ color: 0x5fc9d8 }));
@@ -407,29 +407,29 @@ function spawnThreat(kind, target) {
     speed = 0.3 + Math.random() * 0.5;
   }
   scene.add(mesh); mesh.position.copy(from);
-  mesh.traverse(o => { if (o.isMesh) o.castShadow = true; });   // v5 光影升级：威胁体投影
-  if (target) target.lat = null;   // 新回合开始：清除上一回合潜伏期残留（防 HUD 显示陈旧值）
+  mesh.traverse(o => { if (o.isMesh) o.castShadow = true; });   // v5 lighting upgrade: threat object shadow
+  if (target) target.lat = null;   // new round: clear previous latency residual (prevent stale HUD display)
   const tp = target.mesh.position;
   const dir = tp.clone().sub(from).normalize();
-  // v5 P4：脱靶量范围滑杆（0=精准 ↔ 1=宽松，默认精准）——精准=招招贴身，宽松=恢复 v3 的大范围擦边
+  // v5 P4: miss range slider (0=precision ↔ 1=loose, default precision) — precision=close-shave, loose=v3 wide grazing
   const miss = Math.random() * (1.2 + missRange * 3.3);
-  const tan = new THREE.Vector3(dir.z, 0, -dir.x).normalize();   // 切向手性与训练帧一致：M(-r̂₁,r̂₀,0)=(dir.z,0,-dir.x)，dir=指向目标(to_fly)
-  const dMiss = from.distanceTo(tp) + 1e-9;                      // 脱靶混合系数统一 miss/(d+1e-9)（对齐 train/evaluate，P5③）
+  const tan = new THREE.Vector3(dir.z, 0, -dir.x).normalize();   // tangential chirality matches training frame: M(-r̂₁,r̂₀,0)=(dir.z,0,-dir.x), dir=toward target(to_fly)
+  const dMiss = from.distanceTo(tp) + 1e-9;                      // miss blend coefficient unified miss/(d+1e-9) (aligned with train/evaluate, P5③)
   const vel = dir.clone().multiplyScalar(Math.sqrt(Math.max(0, 1 - (miss / dMiss) ** 2)))
                  .add(tan.multiplyScalar(miss / dMiss)).normalize()
                  .multiplyScalar(speed);
-  // v5 P3：碰撞体按模型真实尺寸（组合球/胶囊链，治攻击"擦边过"判撞失真）
-  //   注意：线索尺寸 s（=th.r）仍用于 loom/wind 公式，语义不变；碰撞只用组合球
+  // v5 P3: collision body uses model real size (combined sphere/capsule chain, fixes attack "grazing past" false collision)
+  //   Note: cue size s (=th.r) still used in loom/wind formulas, semantics unchanged; collision uses combined spheres only
   const col = (x, y, z, r) => ({ o: new THREE.Vector3(x, y, z), r });
   let colliders;
-  if (kind === 'ball') colliders = [col(0, 0, 0, s)];                                  // 扑击球：单球=视觉半径
-  else if (kind === 'frog') colliders = [col(0, 0, 0, 1.55), col(1.2, 0.3, 0, 1.30),   // 青蛙：压扁体+头部组合球
+  if (kind === 'ball') colliders = [col(0, 0, 0, s)];                                  // pounce ball: single sphere = visual radius
+  else if (kind === 'frog') colliders = [col(0, 0, 0, 1.55), col(1.2, 0.3, 0, 1.30),   // frog: flattened body + head combined spheres
                                          col(0, 0, 1.2, 1.10), col(0, 0, -1.2, 1.10), col(-1.2, 0, 0, 1.10)];
-  else colliders = [col(0, 0, 1.5, 0.45), col(0, 0, 0.6, 0.65),                        // 蜻蜓：沿机体轴胶囊链（长 4cm）
+  else colliders = [col(0, 0, 1.5, 0.45), col(0, 0, 0.6, 0.65),                        // dragonfly: capsule chain along body axis (4cm long)
                     col(0, 0, -0.4, 0.70), col(0, 0, -1.4, 0.62)];
   const th = { kind, mesh, r: s, colliders, pos: from.clone(), vel, miss, target, born: performance.now(),
-               counted: miss < s + FLY_R + 1.2,       // 只有构成碰撞威胁的回合才计分
-               escSeen: false, escVec: null, escTrue: null,   // 威胁级逃逸记账（起跳即记，防并发串扰/900ms 窗漏计）
+               counted: miss < s + FLY_R + 1.2,       // only score rounds that pose collision threat
+               escSeen: false, escVec: null, escTrue: null,   // threat-level escape bookkeeping (recorded on takeoff, prevents concurrency crosstalk/900ms window miss)
                resolved: false, t0: performance.now() };
   threats.push(th);
   return th;
@@ -441,7 +441,7 @@ document.getElementById('bAuto').onclick = () => {
   let n = 0; const t = setInterval(() => { spawnThreat(['ball', 'frog', 'dragonfly'][n % 3]); if (++n >= 10) clearInterval(t); }, 1800);
 };
 
-/* ---------- 线索计算（与训练端一致） ---------- */
+/* ---------- Cue Computation (consistent with training) ---------- */
 function computeCues(th, ag) {
   const rvec = th.pos.clone().sub(ag.mesh.position);
   const r = rvec.length() || 1e-6;
@@ -451,26 +451,26 @@ function computeCues(th, ag) {
   const vm = th.vel.length();
   const u = th.r * th.r * vm / (r * r + 1e-9);
   const wind = vm > 1e-9 ? th.vel.clone().multiplyScalar(u / vm) : new THREE.Vector3();
-  // v5 P5④：去掉 atan2 常数偏置（原 rhat.z+1e-9 恒加）；仅近奇异（rhat.x/z 同时≈0，纯垂直）时兜底
+  // v5 P5④: removed atan2 constant bias (original rhat.z+1e-9 always added); only fallback when near-singular (rhat.x/z both≈0, pure vertical)
   const az = (Math.hypot(rhat.x, rhat.z) < 1e-9) ? Math.atan2(rhat.z + 1e-9, rhat.x) : Math.atan2(rhat.z, rhat.x);
   return { r, rhat, rdot, loom, wind, az };
 }
 
-/* ---------- 阶段1/2 集成：无人机 = DronePhysics(飞行动力学) + DroneAdapter(脑→电机) ----------
-   果蝇保持现运动学（果蝇会飞不是直升机）；飞手非修饰键接管最高优先级，适配层被旁路 ---------- */
-let DRONE_PHYS_ON = true;                           // "⚙️ 飞行动力学"开关：开=新物理，关=旧运动学（默认开）
+/* ---------- Phase 1/2 Integration: Drone = DronePhysics (flight dynamics) + DroneAdapter (brain→motor) ----------
+   Fruit fly keeps current kinematics (flies like a fly, not a helicopter); pilot non-modifier-key override highest priority, adapter bypassed ---------- */
+let DRONE_PHYS_ON = true;                           // "⚙️ Flight Dynamics" toggle: ON=new physics, OFF=old kinematics (default ON)
 document.getElementById('bPhys').onclick = () => {
   DRONE_PHYS_ON = !DRONE_PHYS_ON;
-  document.getElementById('bPhys').textContent = '⚙️ 飞行动力学：' + (DRONE_PHYS_ON ? '开' : '关');
-  toast(DRONE_PHYS_ON ? '飞行动力学已开启：无人机走 DronePhysics+DroneAdapter' : '飞行动力学已关闭：全员旧运动学');
+  document.getElementById('bPhys').textContent = '⚙️ Flight Dynamics: ' + (DRONE_PHYS_ON ? 'ON' : 'OFF');
+  toast(DRONE_PHYS_ON ? 'Flight dynamics enabled: drone uses DronePhysics+DroneAdapter' : 'Flight dynamics disabled: all agents use old kinematics');
 };
 function ensureDronePhys(a) {
   const want = a.kind === 'drone' && DRONE_PHYS_ON && a.bionic && !!window.DronePhysics && !!window.DroneAdapter;
   if (!want) { a.physOn = false; return false; }
   if (!a.phys) a.phys = new DronePhysics();
-  if (!a.adapter) a.adapter = new DroneAdapter({ rng: DroneAdapter.makeRng(1234 + agents.indexOf(a)) });   // 注入 rng 保确定性
+  if (!a.adapter) a.adapter = new DroneAdapter({ rng: DroneAdapter.makeRng(1234 + agents.indexOf(a)) });   // inject rng for determinism
   if (!a.physOn) {
-    // 开关/换装/接管切换的当帧：从当前世界位姿重同步（防跳变）；速度 世界单位/ms → 世界单位/s
+    // sync from current world pose on toggle/swap/override frame (prevent jump); speed world units/ms → world units/s
     const p = a.mesh.position, v = a.vel, q = a.mesh.quaternion;
     a.phys.pos.x = p.x; a.phys.pos.y = p.y; a.phys.pos.z = p.z;
     a.phys.vel.x = v.x * 1000; a.phys.vel.y = v.y * 1000; a.phys.vel.z = v.z * 1000;
@@ -481,44 +481,44 @@ function ensureDronePhys(a) {
   return true;
 }
 
-/* ---------- 阶段3：电量装饰条 + 降落/起飞（100→0 用时 10min，耗尽自动 LAND；飞手可随时重新起飞） ---------- */
+/* ---------- Phase 3: Battery cosmetic bar + Land/Takeoff (100→0 in 10min, auto-LAND when depleted; pilot can takeoff anytime) ---------- */
 let batStart = performance.now(), autoLanded = false;
 document.getElementById('bLand').onclick = () => {
   let n = 0;
   for (const a of agents) if (a.adapter) { a.adapter.enterLand(); n++; }
-  toast(n ? '🛬 降落指令已下发（由 DroneAdapter 的 LAND 状态执行）' : '降落需要无人机身体 + 飞行动力学开启');
+  toast(n ? '🛬 Landing command sent (executed by DroneAdapter LAND state)' : 'Landing requires drone body + flight dynamics enabled');
 };
 document.getElementById('bTakeoff').onclick = () => {
   batStart = performance.now(); autoLanded = false;
   for (const a of agents) if (a.adapter) a.adapter.enterCruise();
-  toast('🛫 起飞：电量重置 100%，自动降落解除（飞手随时可再接管）');
+  toast('🛫 Takeoff: battery reset to 100%, auto-land cleared (pilot can override anytime)');
 };
 
-/* ---------- 控制权：手动 / 仿生（飞手任何输入=立即接管） ---------- */
+/* ---------- Control Authority: Manual / Bionic (pilot any input = immediate override) ---------- */
 document.getElementById('bMode').onclick = () => {
   if (!selAgent) return;
   selAgent.bionic = !selAgent.bionic;
-  document.getElementById('bMode').textContent = selAgent.bionic ? '🤖 仿生（点击切手动）' : '🛫 手动（点击切仿生）';
-  toast(selAgent.bionic ? '仿生系统上线' : '手动模式：SNN 不参与控制，绝不输出');
+  document.getElementById('bMode').textContent = selAgent.bionic ? '🤖 Bionic (click to switch manual)' : '🛫 Manual (click to switch bionic)';
+  toast(selAgent.bionic ? 'Bionic system online' : 'Manual mode: SNN does not participate in control, zero output');
 };
 addEventListener('keydown', e => {
   if (!selAgent) return;
   const k = e.key.toLowerCase();
-  if (['shift', 'control', 'alt', 'meta', 'altgraph'].includes(k)) return;  // 纯修饰键不构成操纵意图
+  if (['shift', 'control', 'alt', 'meta', 'altgraph'].includes(k)) return;  // pure modifier keys don't constitute control intent
   if (selAgent.bionic) {
-    // 安全底线：飞手任何按键 = 立即接管，SNN 输出权当场切断（无人机飞手优先）
+    // Safety baseline: pilot any key = immediate override, SNN output authority cut on the spot (drone pilot has priority)
     selAgent.bionic = false;
-    selAgent.escaped = false;   // 连同进行中的逃逸推力一并切断，防再切回仿生时残留一帧旧推力
-    document.getElementById('bMode').textContent = '🛫 手动（点击切仿生）';
-    toast('🛫 飞手按键 = 立即接管，SNN 输出权已切断');
+    selAgent.escaped = false;   // also cut ongoing escape thrust, prevents residual frame when switching back to bionic
+    document.getElementById('bMode').textContent = '🛫 Manual (click to switch bionic)';
+    toast('🛫 Pilot key = immediate override, SNN output authority cut');
   }
   selAgent.manualKeys[k] = true;
 });
 addEventListener('keyup', e => { if (selAgent) selAgent.manualKeys[e.key.toLowerCase()] = false; });
 
-/* ---------- 行为：漫游 + SNN 逃逸 ---------- */
+/* ---------- Behavior: Wander + SNN Escape ---------- */
 function driveAgent(a, dtMs, now) {
-  if (a.dragging) {                                // 拖拽安置中：不动、不决策（物理状态随手同步，防回跳）
+  if (a.dragging) {                                // dragging in progress: no movement, no decision (physics state synced with hand to prevent bounce)
     if (a.phys) {
       const dp0 = a.mesh.position;
       a.phys.pos.x = dp0.x; a.phys.pos.y = dp0.y; a.phys.pos.z = dp0.z;
@@ -527,13 +527,13 @@ function driveAgent(a, dtMs, now) {
     return;
   }
   const w = WEATHER[weather];
-  // 换体为无人机+开关开+仿生 → DronePhysics+DroneAdapter；果蝇/手动/关开关 → 现运动学（飞手接管时适配层旁路）
+  // drone body + toggle on + bionic → DronePhysics+DroneAdapter; fruit fly/manual/toggle off → current kinematics (pilot override bypasses adapter)
   const dronePhys = ensureDronePhys(a);
-  // 全局风力扰动（大风天把机体吹得晃）——旧运动学口径；飞行动力学路径由动力学自身阻力项承担
+  // global wind perturbation (gale pushes body to wobble) — old kinematics scope; flight dynamics path handled by its own drag term
   if (!dronePhys) { a.vel.x += w.wind[0] * dtMs; a.vel.z += w.wind[2] * dtMs; }
 
   if (!a.bionic) {
-    // 手动驾驶：WASD/方向键（飞手输入即权威，SNN 无输出权）
+    // Manual piloting: WASD/arrow keys (pilot input is authoritative, SNN has no output)
     const k = a.manualKeys;
     const fwd = (k['w'] || k['arrowup'] ? 1 : 0) - (k['s'] || k['arrowdown'] ? 1 : 0);
     const side = (k['d'] || k['arrowright'] ? 1 : 0) - (k['a'] || k['arrowleft'] ? 1 : 0);
@@ -542,7 +542,7 @@ function driveAgent(a, dtMs, now) {
       a.vel.z -= fwd * a.spec.accel * dtMs;
     }
   } else {
-    // 自动漫游（无威胁时悠闲巡游）——飞行动力学路径改由 DroneAdapter 的 CRUISE 随机游走接管
+    // Auto wander (leisurely patrol when no threats) — flight dynamics path handled by DroneAdapter CRUISE random walk
     if (!dronePhys) {
       a.wanderT -= dtMs;
       if (a.wanderT <= 0) {
@@ -553,15 +553,15 @@ function driveAgent(a, dtMs, now) {
       a.vel.z += (a.goalDir.z * 0.0004 - a.vel.z * 0.004) * dtMs;
     }
 
-    // SNN 决策（≥40ms 一次，约 25Hz）——阶段3：大脑持续在线（有最近障碍/威胁输入即每决策周期跑 SNN）
-    // 多个并发威胁时先应对最近的（本世界简化；统计仍按威胁逐个记账）
+    // SNN decision (≥40ms interval, ~25Hz) — Phase 3: brain always online (runs SNN every decision cycle with recent obstacle/threat input)
+    // Multiple concurrent threats: respond to nearest first (simplified in this world; stats still bookkeep per threat)
     let th = null, bestR = Infinity;
     for (const t of threats) {
       if (t.target !== a || t.resolved) continue;
       const rr = t.pos.distanceTo(a.mesh.position);
       if (rr < bestR) { bestR = rr; th = t; }
     }
-    // 阶段3 巡航避障：loom 场采样最近障碍方位（含未瞄准本体的威胁），只转向、不记账
+    // Phase 3 cruise obstacle avoidance: loom field samples nearest obstacle direction (including threats not aimed at this agent), only steer, no bookkeeping
     let ob = null, bestOb = Infinity;
     for (const t of threats) {
       if (t.resolved) continue;
@@ -572,47 +572,47 @@ function driveAgent(a, dtMs, now) {
     if (cueT && now - a.lastDecision > 40) {
       a.lastDecision = now;
       const cues = computeCues(cueT, a);
-      // 坐标系映射：网络帧(0=含az平面x, 1=该平面z, 2=垂直y) → 世界(x,z,y)，输入风矢量须按 (x,z,y) 送入
-      const rec = window.BrainPanel ? BrainPanel.beginRec() : null;   // 大脑面板旁路记录（关闭时为 null，计算路径零改动）
+      // coordinate system mapping: network frame(0=az-plane x, 1=that plane z, 2=vertical y) → world(x,z,y), wind input must be sent as (x,z,y)
+      const rec = window.BrainPanel ? BrainPanel.beginRec() : null;   // brain panel bypass recording (null when closed, zero overhead in compute path)
       const out = a.brain.simulate(cues.loom, [cues.wind.x, cues.wind.z, cues.wind.y], cues.az, rec);
       if (rec) BrainPanel.show(rec, out, cues);
       a.lastOut = out; a.lastCues = cues;
-      a.lat = out.triggered ? out.firstSpikeMs : null;   // 每次决策刷新潜伏期读数（未放电→"—"，防多威胁串扰旧值）
+      a.lat = out.triggered ? out.firstSpikeMs : null;   // refresh latency reading each decision (no spike→"—", prevents multi-threat crosstalk stale values)
       if (out.triggered) {
         if (!a.escaped) {
-          // GF 放电 → 逃逸机动（身体执行差异：果蝇爆发快，无人机受加速度限制）
-          // 输出同帧映射：escapeDir(0,1,2) = (x,z,y) 世界分量，须交换 y/z 再施加
+          // GF spike → escape maneuver (body execution differs: fruit fly burst fast, drone acceleration-limited)
+          // Output same-frame mapping: escapeDir(0,1,2) = (x,z,y) world components, must swap y/z before applying
           a.escapeVec = new THREE.Vector3(out.escapeDir[0], out.escapeDir[2], out.escapeDir[1]).normalize();
           a.escaped = true; a.escapeAt = now;
           a.lat = out.firstSpikeMs;
-          banner('⚡ 逃逸！');
+          banner('⚡ Escape!');
         }
         if (th && !th.escSeen) {
-          // 按威胁记账：起跳即记（含 900ms 机动窗内另一威胁触发的情形），不受机动窗影响
+          // Per-threat bookkeeping: recorded on takeoff (includes another threat triggered within 900ms maneuver window), unaffected by maneuver window
           th.escSeen = true;
-          th.escVec = new THREE.Vector3(out.escapeDir[0], out.escapeDir[2], out.escapeDir[1]).normalize();   // 记当次 SNN 对"该威胁"的决策方向（防复用上一威胁的机动向量）
-          th.escTrue = cues.rhat.clone().multiplyScalar(-1);   // 起跳时刻"背离"真值（结算时 r̂ 已变）
+          th.escVec = new THREE.Vector3(out.escapeDir[0], out.escapeDir[2], out.escapeDir[1]).normalize();   // record this SNN's decision direction for "this threat" (prevents reuse of previous threat's maneuver vector)
+          th.escTrue = cues.rhat.clone().multiplyScalar(-1);   // "away" ground truth at takeoff moment (r̂ changes by settlement time)
         }
       } else if (cues.loom > 0.35) {
-        // 阶段3 巡航避障：0.35<loom<触发阈值（SNN 未触发）→ 朝远离障碍方向偏航，只转向、不触发逃逸
+        // Phase 3 cruise obstacle avoidance: 0.35<loom<threshold (SNN not triggered) → yaw away from obstacle, only steer, no escape trigger
         const away = new THREE.Vector3(a.mesh.position.x - cueT.pos.x, 0, a.mesh.position.z - cueT.pos.z);
         if (away.lengthSq() > 1e-8) {
           away.normalize();
-          if (dronePhys) a.adapter.setYawTarget(Math.atan2(away.x, away.z));   // 无人机：改期望航向（偏航）
-          else a.goalDir.copy(away);                                           // 果蝇/旧运动学：游荡方向转走
+          if (dronePhys) a.adapter.setYawTarget(Math.atan2(away.x, away.z));   // drone: change desired heading (yaw)
+          else a.goalDir.copy(away);                                           // fruit fly/old kinematics: wander direction turns away
         }
       }
     }
     if (dronePhys) {
-      // ★适配层替换点（原 526-528 三行逃逸推力）：果蝇脑输出 → DroneAdapter(状态机+PID+混控) → DronePhysics(动力学)
+      // ★ Adapter layer replacement point (replaces original lines 526-528 escape thrust): fruit fly brain output → DroneAdapter (state machine+PID+mixer) → DronePhysics (dynamics)
       const ph = a.phys, ee = ph.eulerAngles();
       const motors = a.adapter.update(cueT ? a.lastOut : null,
         { pos: ph.pos, vel: ph.vel, roll: ee.roll, pitch: ee.pitch, yaw: ee.yaw, groundY: 6 }, dtMs, false);
       ph.update(dtMs / 1000, motors);
-      const q = ph.quat; a.mesh.quaternion.set(q.x, q.y, q.z, q.w);          // 姿态取自动力学四元数
+      const q = ph.quat; a.mesh.quaternion.set(q.x, q.y, q.z, q.w);          // attitude from dynamics quaternion
       const fp = ph.pos; a.mesh.position.set(fp.x, fp.y, fp.z);
       a.vel.set(ph.vel.x * 0.001, ph.vel.y * 0.001, ph.vel.z * 0.001);       // 世界单位/s → 世界单位/ms
-      // 边界（与旧运动学同口径）
+      // boundary (same scope as old kinematics)
       const bp = a.mesh.position;
       if (bp.y < 6) { bp.y = 6; if (ph.vel.y < 0) ph.vel.y = 0; }
       if (bp.y > 60) { bp.y = 60; if (ph.vel.y > 0) ph.vel.y = 0; }
@@ -626,7 +626,7 @@ function driveAgent(a, dtMs, now) {
     }
   }
   if (!dronePhys) {
-    // 限速、阻尼、边界
+    // speed limit, damping, boundary
     const sp = a.vel.length();
     if (sp > a.spec.vmax) a.vel.multiplyScalar(a.spec.vmax / sp);
     a.vel.multiplyScalar(a.spec.drag);
@@ -635,38 +635,38 @@ function driveAgent(a, dtMs, now) {
     if (p.y < (a.kind === 'fly' ? 3 : 6)) p.y = a.kind === 'fly' ? 3 : 6;
     if (p.y > 60) p.y = 60;
     const d = Math.hypot(p.x, p.z); if (d > 230) { p.x *= 230 / d; p.z *= 230 / d; }
-    // 朝向速度方向
+    // face velocity direction
     if (sp > 1e-5) {
       const look = p.clone().add(a.vel.clone().normalize());
       a.mesh.lookAt(look);
     }
   }
-  // 翅膀/旋翼/关节动画（v5：翅绕根部翅振+副扭转、六足膝关节步态、双叶桨正反桨、云台微动、指示灯闪）
+  // wings/rotors/joints animation (v5: wing flap around root + secondary twist, six-leg knee joint gait, dual-blade counter-rotation, gimbal micro-movement, indicator light blink)
   a.wingT += dtMs;
   if (a.kind === 'fly') {
     a.mesh.userData.wings.forEach((w, i) => {
-      w.rotation.z = Math.sin(a.wingT * (a.escaped ? 0.09 : 0.05) + i * Math.PI) * 0.9;    // 翅振（绕翅根）
-      w.rotation.x = (i ? 1 : -1) * (0.18 + Math.sin(a.wingT * (a.escaped ? 0.045 : 0.025)) * 0.08);  // 翅扭转副动
+      w.rotation.z = Math.sin(a.wingT * (a.escaped ? 0.09 : 0.05) + i * Math.PI) * 0.9;    // wing flap (around wing root)
+      w.rotation.x = (i ? 1 : -1) * (0.18 + Math.sin(a.wingT * (a.escaped ? 0.045 : 0.025)) * 0.08);  // wing twist secondary motion
     });
-    (a.mesh.userData.legs || []).forEach(L => {          // 六足关节：髋/膝相位步态
+    (a.mesh.userData.legs || []).forEach(L => {          // six-leg joints: hip/knee phase gait
       L.hip.rotation.x = L.baseHip + Math.sin(a.wingT * 0.004 + L.phase) * 0.12;
       L.knee.rotation.x = L.baseKnee + Math.max(0, Math.sin(a.wingT * 0.004 + L.phase + 1)) * 0.18;
     });
   } else {
-    a.mesh.userData.rotors.forEach((r, i) => r.rotation.y = a.wingT * 0.55 * (i % 2 ? 1 : -1));   // 正反桨
+    a.mesh.userData.rotors.forEach((r, i) => r.rotation.y = a.wingT * 0.55 * (i % 2 ? 1 : -1));   // counter-rotation
     const gim = a.mesh.userData.gimbal;
     if (gim) {
       gim.rotation.y = Math.sin(a.wingT * 0.0008) * 0.4;
       if (gim.userData.pitch) gim.userData.pitch.rotation.x = 0.35 + Math.sin(a.wingT * 0.0011) * 0.15;
     }
-    (a.mesh.userData.leds || []).forEach((l, i) => l.visible = ((a.wingT * 0.002 + i * 0.6) % 2) < 1.4);  // 指示灯
+    (a.mesh.userData.leds || []).forEach((l, i) => l.visible = ((a.wingT * 0.002 + i * 0.6) % 2) < 1.4);  // indicator lights
   }
 }
 
-/* ---------- 威胁推进与结算 ---------- */
-const _co = new THREE.Vector3(), _r0 = new THREE.Vector3(), _r1 = new THREE.Vector3(), _sg = new THREE.Vector3();   // 判撞临时向量
+/* ---------- Threat Propagation & Resolution ---------- */
+const _co = new THREE.Vector3(), _r0 = new THREE.Vector3(), _r1 = new THREE.Vector3(), _sg = new THREE.Vector3();   // collision temp vectors
 function driveThreats(dtMs, now) {
-  const toRespawn = [];                       // 复活推迟到本轮循环外，防瞬移污染同帧后续威胁的判距
+  const toRespawn = [];                       // respawn delayed outside this loop, prevents teleport polluting distance checks for subsequent threats in same frame
   for (const th of threats) {
     if (th.resolved) continue;
     th.pos.addScaledVector(th.vel, dtMs);
@@ -676,46 +676,46 @@ function driveThreats(dtMs, now) {
     if (!ag || agents.indexOf(ag) < 0) { th.resolved = true; scene.remove(th.mesh); continue; }
 
     const cues = computeCues(th, ag);
-    // 命中判定（v5 P3）：组合球/胶囊链按模型真实尺寸逐球扫掠——
-    //   步内线段到原点最近距离（含端点，二次型最近点）< 球半径+FLY_R；治"擦边过"判撞失真
-    //   帧首真实 pre-frame 位置（v5 P5②）：不再用 vel×钳制 dtMs 反推（钳制帧扫掠失真的根源）
+    // hit detection (v5 P3): combined sphere/capsule chain sweeps per-sphere by model real size —
+    //   segment-to-origin closest distance (including endpoints, quadratic closest point) < sphere radius+FLY_R; fixes "grazing past" false collision
+    //   true pre-frame position at frame start (v5 P5②): no more vel×clamped dtMs back-calculation (root cause of clamped frame sweep distortion)
     const aPrev = ag.preFrame || ag.mesh.position;
     const pPrev = th.preFrame || th.pos;
     let closestDist = Infinity;
     for (const c of th.colliders) {
-      _co.copy(c.o).applyQuaternion(th.mesh.quaternion);          // 局部碰撞球偏移 → 世界（随模型翻滚）
+      _co.copy(c.o).applyQuaternion(th.mesh.quaternion);          // local collision sphere offset → world (follows model tumble)
       _r0.copy(pPrev).add(_co).sub(aPrev);
       _r1.copy(th.pos).add(_co).sub(ag.mesh.position);
       _sg.copy(_r1).sub(_r0);
       const segLen2 = _sg.lengthSq();
       const tHit = segLen2 > 0 ? Math.max(0, Math.min(1, -_r0.dot(_sg) / segLen2)) : 0;
-      const surf = _r0.addScaledVector(_sg, tHit).length() - c.r;  // 扫掠表面距（负=穿透）
+      const surf = _r0.addScaledVector(_sg, tHit).length() - c.r;  // sweep surface distance (negative=penetration)
       if (surf < closestDist) closestDist = surf;
     }
     if (closestDist < FLY_R || cues.r < th.r + FLY_R) {
       th.resolved = true;
       if (th.counted) {
         ag.stats.rounds++; ag.stats.hit++;
-        toast('💥 被命中 —— 这一世结束了（本能仍在，可复活）');
+        toast('💥 Hit! This life is over (instincts remain, can respawn)');
         toRespawn.push(ag);
       } else if (th.escSeen) {
-        ag.stats.fa++;                     // 非计分威胁起跳即计虚警（与"飞离结算"路径对称）
+        ag.stats.fa++;                     // non-scored threat: escape counted as false alarm (symmetric with "fly-away resolution" path)
       }
       scene.remove(th.mesh);
     } else if ((cues.rdot > 0 && cues.r > 60) || now - th.t0 > 9000) {
-      // 威胁远去/超时：结算（只有计分回合统计；虚警=够不上碰撞的威胁却起跳）
+      // threat moved away/timed out: resolve (only scored rounds stats; false alarm = threat posed no collision but triggered escape)
       th.resolved = true;
       if (th.counted) {
         ag.stats.rounds++;
         if (th.escSeen) {                  // 按威胁记账：起跳即记（不受 900ms 机动窗影响）
           ag.stats.esc++;
-          const esc = th.escTrue || cues.rhat.clone().multiplyScalar(-1);   // 起跳时刻"背离"真值（决策时刻口径，与 REPORT/bBatch 可比）
+          const esc = th.escTrue || cues.rhat.clone().multiplyScalar(-1);   // "away" ground truth at takeoff moment (decision-time scope, comparable with REPORT/bBatch)
           const d = th.escVec ? th.escVec.clone().normalize().dot(esc) : 0;
           const ang = Math.acos(Math.max(-1, Math.min(1, d))) * 180 / Math.PI;
           ag.stats.angSum += ang; ag.stats.angN++;
         }
       } else if (th.escSeen) {
-        ag.stats.fa++;                     // 虚警：够不上碰撞的威胁却跳了
+        ag.stats.fa++;                     // false alarm: threat posed no collision but triggered escape
       }
       scene.remove(th.mesh);
     }
@@ -724,10 +724,10 @@ function driveThreats(dtMs, now) {
 }
 function respawn(a) {
   a.mesh.position.set(Math.random() * 40 - 20, 10, Math.random() * 40 - 20);
-  a.vel.set(0, 0, 0); a.escaped = false;   // 复活 = 出厂重置（本能权重不变）
+  a.vel.set(0, 0, 0); a.escaped = false;   // respawn = factory reset (instinct weights unchanged)
 }
 
-/* ---------- 相机跟随选中个体（第三人称） ---------- */
+/* ---------- Camera Follow Selected Agent (Third Person) ---------- */
 const camOffset = new THREE.Vector3(0, 26, 46);
 function driveCamera() {
   if (!selAgent) return;
@@ -737,12 +737,12 @@ function driveCamera() {
 }
 addEventListener('wheel', e => {
   camOffset.multiplyScalar(1 + Math.sign(e.deltaY) * 0.05);
-  const L = camOffset.length();                     // 缩放限幅：防穿模/拉超远
+  const L = camOffset.length();                     // zoom limit: prevent clipping / pulling too far
   if (L < 8) camOffset.setLength(8);
   else if (L > 120) camOffset.setLength(120);
 });
 
-/* ---------- 拖拽个体（躲成功待在原地；被击中随机复活；也可手动拖到新位置） ---------- */
+/* ---------- Drag Agent (dodge success stays in place; hit random respawn; can also manually drag to new position) ---------- */
 const ray = new THREE.Raycaster();
 const ndcV = new THREE.Vector2();
 let dragAgent = null;
@@ -762,7 +762,7 @@ renderer.domElement.addEventListener('mousedown', e => {
   dragAgent = agents.find(a => { let o = obj; while (o) { if (o === a.mesh) return true; o = o.parent; } return false; }) || null;
   if (!dragAgent) return;
   selectAgent(dragAgent);
-  dragPlane.constant = -dragAgent.mesh.position.y;   // 在个体当前高度的水平面上拖
+  dragPlane.constant = -dragAgent.mesh.position.y;   // drag on horizontal plane at agent's current height
   dragAgent.dragging = true;
   dragAgent.vel.set(0, 0, 0);
 });
@@ -770,7 +770,7 @@ addEventListener('mousemove', e => {
   if (!dragAgent) return;
   setNDC(e); ray.setFromCamera(ndcV, camera);
   if (ray.ray.intersectPlane(dragPlane, dragPt)) {
-    dragAgent.mesh.position.set(                     // 拖动中只挪位置、不给速度（限幅防拖出世界）
+    dragAgent.mesh.position.set(                     // during drag: move position only, no velocity (clamped to prevent dragging out of world)
       Math.max(-200, Math.min(200, dragPt.x)),
       dragAgent.mesh.position.y,
       Math.max(-200, Math.min(200, dragPt.z)));
@@ -783,21 +783,21 @@ addEventListener('mouseup', () => {
 /* ---------- HUD ---------- */
 function updateHUD() {
   const a = selAgent;
-  if (!a) {                                        // 无个体：清空读数，防旧值残留
+  if (!a) {                                        // no agent: clear readings, prevent stale values
     for (const id of ['mBody', 'mMode', 'mLoom', 'mWind', 'mV', 'mGF', 'mLat', 'mRounds', 'mEsc', 'mHit', 'mFA', 'mRate', 'mAng', 'mFsm', 'mRoll', 'mPitch']) document.getElementById(id).textContent = '—';
     for (let i = 1; i <= 4; i++) document.getElementById('mM' + i).style.width = '0';
     return;
   }
   document.getElementById('mBody').textContent = a.spec.name;
   const mt = document.getElementById('mMode');
-  mt.textContent = a.bionic ? '仿生' : '手动';
+  mt.textContent = a.bionic ? 'Bionic' : 'Manual';
   mt.className = 'tag ' + (a.bionic ? 'ok' : 'dim');
-  const active = threats.some(t => t.target === a && !t.resolved);          // 有正在进行的威胁才属"决策中"
-  const o = (a.bionic && active) ? a.lastOut : null, c = (a.bionic && active) ? a.lastCues : null;  // 手动/无威胁不显示旧读数
+  const active = threats.some(t => t.target === a && !t.resolved);          // only "deciding" when threats are active
+  const o = (a.bionic && active) ? a.lastOut : null, c = (a.bionic && active) ? a.lastCues : null;  // manual/no-threats don't show stale readings
   document.getElementById('mLoom').textContent = c ? c.loom.toFixed(2) : '—';
   document.getElementById('mWind').textContent = c ? Math.hypot(c.wind.x, c.wind.y, c.wind.z).toFixed(4) : '—';
   document.getElementById('mV').textContent = o ? o.vHubMax.toFixed(2) : '—';
-  document.getElementById('mGF').textContent = o ? (o.triggered ? '放电！' : '静息') : '未运行';
+  document.getElementById('mGF').textContent = o ? (o.triggered ? 'Firing!' : 'Resting') : 'Not Running';
   document.getElementById('mGF').className = o && o.triggered ? 'ok' : 'dim';
   document.getElementById('mLat').textContent = (a.bionic && active && a.lat) ? a.lat + ' ms' : '—';
   const s = a.stats;
@@ -807,13 +807,13 @@ function updateHUD() {
   document.getElementById('mFA').textContent = s.fa;
   document.getElementById('mRate').textContent = s.rounds ? (s.esc / s.rounds * 100).toFixed(1) + '%' : '—';
   document.getElementById('mAng').textContent = s.angN ? (s.angSum / s.angN).toFixed(1) + '°' : '—';
-  // 飞行遥测（阶段1/2）：状态机文字 + 电机 4 条 + 姿态角 roll/pitch（非无人机/关物理/手动接管时按口径显示）
+  // Flight telemetry (Phase 1/2): state machine text + 4 motor bars + attitude angles roll/pitch (displays per scope when not drone/physics off/pilot override)
   const dp = (a.kind === 'drone' && a.adapter && a.physOn) ? a : null;
-  document.getElementById('mFsm').textContent = dp ? (!a.bionic ? '飞手' : a.adapter.lastStateCN)
-    : (a.kind === 'drone' && !a.bionic ? '飞手' : '—');
+  document.getElementById('mFsm').textContent = dp ? (!a.bionic ? 'Pilot' : a.adapter.lastStateCN)
+    : (a.kind === 'drone' && !a.bionic ? 'Pilot' : '—');
   const mo = dp ? a.adapter.lastMotors : null;
   for (let i = 0; i < 4; i++) {
-    const norm = mo ? Math.min(1.5, Math.max(0, mo[i] / DronePhysics.HOVER)) : 0;   // 归一化口径（悬停=1.0，爆发=1.5）
+    const norm = mo ? Math.min(1.5, Math.max(0, mo[i] / DronePhysics.HOVER)) : 0;   // normalized scope (hover=1.0, burst=1.5)
     document.getElementById('mM' + (i + 1)).style.width = (norm / 1.5 * 100).toFixed(0) + '%';
   }
   if (dp) {
@@ -836,11 +836,11 @@ function banner(msg) {
   setTimeout(() => b.style.opacity = 0, 700);
 }
 
-/* ---------- 批量统计（口径与 train_snn.py 评估一致） ----------
-   注：本统计直接用训练帧自建样本（rhat=[cos el cos az, cos el sin az, sin el]、风按 (x,y,z)），
-   与 3D 场景的 (x,z,y) 世界帧映射约定不同，但各自自洽。 ---------- */
+/* ---------- Batch Statistics (scope consistent with train_snn.py evaluation) ----------
+   Note: this stats directly uses training-frame self-built samples (rhat=[cos el cos az, cos el sin az, sin el], wind as (x,y,z)),
+   different from the 3D scene (x,z,y) world frame mapping convention, but each self-consistent. ---------- */
 document.getElementById('bBatch').onclick = () => {
-  const out = document.getElementById('batchOut'); out.textContent = '统计中…';
+  const out = document.getElementById('batchOut'); out.textContent = 'Running stats...';
   setTimeout(() => {
     const N = 100; let trigOK = 0, hits = 0, nPos = 0, angSum = 0, latSum = 0, latN = 0;
     const ag = selAgent || agents[0];
@@ -852,7 +852,7 @@ document.getElementById('bBatch').onclick = () => {
       const rhat = new THREE.Vector3(Math.cos(el) * Math.cos(az), Math.cos(el) * Math.sin(az), Math.sin(el));
       const miss = Math.random() * 8;
       const tan = new THREE.Vector3(-rhat.y, rhat.x, 0).normalize();
-      const v = rhat.clone().multiplyScalar(-Math.sqrt(Math.max(0, 1 - (miss / (d + 1e-9)) ** 2)))   // P5③：miss/(d+1e-9)
+      const v = rhat.clone().multiplyScalar(-Math.sqrt(Math.max(0, 1 - (miss / (d + 1e-9)) ** 2)))   // P5③: miss/(d+1e-9)
                     .add(tan.multiplyScalar(miss / (d + 1e-9))).normalize().multiplyScalar(speed / 10);
       const rdot = v.dot(rhat);
       const loom = Math.max(0, -2 * s * rdot / (d * d + s * s)) * 1000 * WEATHER[weather].visGain;
@@ -873,18 +873,18 @@ document.getElementById('bBatch').onclick = () => {
         if (pred === 1 && ang < 30) hits++;
       }
     }
-    out.innerHTML = `【${WEATHER[weather].name}】100 场景：触发 <b>${(trigOK / N * 100).toFixed(1)}%</b>　` +
-      `成功 <b>${(hits / Math.max(1, nPos) * 100).toFixed(1)}%</b>　` +
-      `方向 <b>${nPos ? (angSum / nPos).toFixed(1) + '°' : '—'}</b>　` +
-      `潜伏 <b>${latN ? (latSum / latN).toFixed(1) + ' ms' : '—'}</b>`;   // 口径=train：放电正样本的平均潜伏期
+    out.innerHTML = `【${WEATHER[weather].name}】100 scenarios: Trigger <b>${(trigOK / N * 100).toFixed(1)}%</b>　` +
+      `Escape <b>${(hits / Math.max(1, nPos) * 100).toFixed(1)}%</b>　` +
+      `Direction <b>${nPos ? (angSum / nPos).toFixed(1) + '°' : '—'}</b>　` +
+      `Latency <b>${latN ? (latSum / latN).toFixed(1) + ' ms' : '—'}</b>`;   // scope=train: mean latency of firing positive samples
   }, 30);
 };
 document.getElementById('bReset').onclick = () => {
   agents.forEach(a => a.stats = { rounds: 0, esc: 0, hit: 0, fa: 0, angSum: 0, angN: 0 });
-  toast('统计已清零');
+  toast('Stats cleared');
 };
 
-/* ---------- 主循环 ---------- */
+/* ---------- Main Loop ---------- */
 let last = performance.now();
 function animate(now) {
   requestAnimationFrame(animate);

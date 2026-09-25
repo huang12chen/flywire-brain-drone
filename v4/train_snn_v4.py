@@ -1,28 +1,28 @@
 # -*- coding: utf-8 -*-
 """
-train_snn_v4.py —— v4 阶段 A：数据升级 + 防过拟合（在 v3 train_snn.py 基础上**只改数据与正则**）
+train_snn_v4.py —— v4 Phase A: Data Upgrade + Anti-Overfitting (only changes data & regularization from v3 train_snn.py)
 ============================================================================================
-与 v3 train_snn.py 的差异（除此之外逐位一致）：
-  1) 训练样本 N_TRAIN 5000 -> 50000（可用 --n-train 调；测速后可能降到 2–3 万）；
-  2) 输入增强（仅训练时）：视觉/风觉通道发放概率加高斯噪声 σ~U(0, NOISE_STD=0.05)（可调），
-     并以 P_DROP=0.12 概率整通道置零（随机缺视觉或缺风觉，各 6%）；
-  3) OOD 测试集 2000 条：明显偏移的参数单独生成（见 sample_threat_ood / build_ood_dataset），
-     任何训练/验证环节不得使用（仅在最终评估里单列）；
-  4) 3 个训练种子（20240521/20240522/20240523），验证/OOD 集跨种子固定，报 mean±std(ddof=1)；
-  5) 正则化：Adam weight_decay=1e-4；早停盯**验证损失**（PATIENCE=6，最少 MIN_EPOCHS=8）；
-     每轮记录 train/val 损失曲线（过拟合体检 = train-val 差距）；每轮存检查点，支持 --resume 断点续训；
-  6) 检查点选优准则：验证损失最小（v3 为每 5 轮 score 选优）—— 差异会在 REPORT_v4.md 如实声明。
+Differences from v3 train_snn.py (bit-identical otherwise):
+  1) Training samples N_TRAIN 5000 -> 50000 (adjustable via --n-train; may drop to 20-30k after speed test);
+  2) Input augmentation (training only): Gaussian noise σ~U(0, NOISE_STD=0.05) added to visual/wind firing probabilities (adjustable),
+     and P_DROP=0.12 probability of zeroing out entire modality (randomly drop vision or wind, 6% each);
+  3) OOD test set of 2000 samples: clearly shifted parameters generated separately (see sample_threat_ood / build_ood_dataset),
+     never used in any training/validation环节 (only listed separately in final evaluation);
+  4) 3 training seeds (20240521/20240522/20240523), validation/OOD sets fixed across seeds, report mean±std(ddof=1);
+  5) Regularization: Adam weight_decay=1e-4; early stopping monitors **validation loss** (PATIENCE=6, minimum MIN_EPOCHS=8);
+     Each epoch records train/val loss curves (overfitting health check = train-val gap); checkpoint saved each epoch, supports --resume for checkpoint continuation;
+  6) Checkpoint selection criterion: minimum validation loss (v3 selects best score every 5 epochs) — difference will be honestly declared in REPORT_v4.md.
 
-不变项（与 train_snn.py 完全一致，保证可比性）：
-  架构（EscapeSNN/LIF β=0.85, VTH=1.0, T=12, dt=1ms, 软复位）、拓扑 mask、in_gain、读出头、
-  标签规则（ṙ<0 且 ttc<50ms 且 r<25cm；esc=−r̂）、决策窗（触发=GF 首次放电步<12）、
-  损失函数（0.5·BCE + 0.5·方向余弦(带 yTrig 掩码) + 2e-3·rate·T + 0.6·GF放电BCE(pos_weight=2.5)）、
-  激活边界（>0）、Adam+余弦退火、BATCH=64、EPOCHS=25、LR=2e-3。
+Unchanged items (bit-identical to train_snn.py for comparability):
+  Architecture (EscapeSNN/LIF β=0.85, VTH=1.0, T=12, dt=1ms, soft reset), topology mask, in_gain, readout heads,
+  Label rule (ṙ<0 and ttc<50ms and r<25cm; esc=−r̂), decision window (trigger=GF first spike step<12),
+  Loss function (0.5·BCE + 0.5·direction cosine (with yTrig mask) + 2e-3·rate·T + 0.6·GF firing BCE(pos_weight=2.5)),
+  Activation boundary (>0), Adam+cosine annealing, BATCH=64, EPOCHS=25, LR=2e-3.
 
-用法：
-  py -3.13 v4\\train_snn_v4.py --seed 20240521                  # 训练一个种子
-  py -3.13 v4\\train_snn_v4.py --seed 20240521 --resume         # 断点续训
-  py -3.13 v4\\train_snn_v4.py --speed-test                     # 只测速
+Usage:
+  py -3.13 v4\\train_snn_v4.py --seed 20240521                  # Train one seed
+  py -3.13 v4\\train_snn_v4.py --seed 20240521 --resume         # Resume from checkpoint
+  py -3.13 v4\\train_snn_v4.py --speed-test                     # Speed test only
 """
 import os
 import sys
@@ -36,19 +36,19 @@ import argparse
 import numpy as np
 
 BASE = os.path.dirname(os.path.abspath(__file__))      # v4\
-ROOT = os.path.dirname(BASE)                            # 项目根（v3 冻结区，只读）
+ROOT = os.path.dirname(BASE)                            # Project root (v3 frozen zone, read-only)
 os.environ.setdefault('PYTHONPATH', os.path.join(ROOT, 'pylibs'))
-# [v4] OpenMP 被动等待（必须在 import torch 前设置）：默认自旋等待在多进程/持续负载下会互相抢核，
-#      实测同一批计算从 0.6–0.8s/批 降到 0.15–0.21s/批（见 REPORT_v4.md §2 测速）。
+# [v4] OpenMP passive waiting (must be set before importing torch): default spin-wait competes for cores under multi-process/continuous load,
+#      measured speedup from 0.6-0.8s/batch down to 0.15-0.21s/batch (see REPORT_v4.md §2 speed test).
 os.environ.setdefault('OMP_WAIT_POLICY', 'PASSIVE')
 os.environ.setdefault('KMP_BLOCKTIME', '0')
 import sys
-sys.path.insert(0, os.path.join(ROOT, 'pylibs'))        # 兜底：分离后台进程也能找到 numpy/torch
+sys.path.insert(0, os.path.join(ROOT, 'pylibs'))        # Fallback: detached background processes can also find numpy/torch
 
 import torch
 import torch.nn as nn
 
-try:  # snntorch 的代理梯度；若未安装则用等价的自实现 fast-sigmoid
+try:  # snntorch surrogate gradients; if not installed, use equivalent self-implemented fast-sigmoid
     from snntorch import surrogate as _surr
     spike_grad = _surr.fast_sigmoid()
     USING = 'snntorch surrogate.fast_sigmoid'
@@ -57,7 +57,7 @@ except Exception:
         @staticmethod
         def forward(ctx, x):
             ctx.save_for_backward(x)
-            return (x > 0).float()   # 边界 >0 与 snntorch FastSigmoid 一致
+            return (x > 0).float()   # Boundary >0 consistent with snntorch FastSigmoid
 
         @staticmethod
         def backward(ctx, grad):
@@ -69,31 +69,31 @@ except Exception:
         return _FastSigmoid.apply(x)
     USING = 'manual fast-sigmoid'
 
-# ---------------- 超参数（大写常量与 v3 train_snn.py 逐位一致，除非注明 v4 新增） ----------------
+# ---------------- Hyperparameters (uppercase constants bit-identical to v3 train_snn.py unless noted as v4 new) ----------------
 DT_MS = 1.0
-T_STEPS = 12          # 仿真窗口 12 ms（GF 逃逸反应潜伏期量级）
-BETA = 0.85           # 膜电位衰减
-VTH = 1.0             # 阈值
+T_STEPS = 12          # Simulation window 12 ms (GF escape response latency order of magnitude)
+BETA = 0.85           # Membrane potential decay
+VTH = 1.0             # Threshold
 BATCH = 64
 EPOCHS = 25
 LR = 2e-3
 N_TRAIN_DEFAULT = 50000   # [v4] v3=5000
 N_VAL = 1200
-N_OOD = 2000              # [v4] OOD 测试集规模
-RATE_MAX_HZ = 200.0   # 输入编码最大放电率
+N_OOD = 2000              # [v4] OOD test set size
+RATE_MAX_HZ = 200.0   # Maximum input encoding firing rate
 BASE_RATE_HZ = 5.0
-TAU_TTC_MS = 50.0     # 触发判据：碰撞时间 < 50 ms
-R_TRIGGER_CM = 25.0   # 且距离 < 25 cm
+TAU_TTC_MS = 50.0     # Trigger criterion: time-to-collision < 50 ms
+R_TRIGGER_CM = 25.0   # and distance < 25 cm
 
-# ---------------- [v4] 数据增强与正则超参数 ----------------
-NOISE_STD = 0.05      # 高斯噪声上限（每样本 σ~U(0,NOISE_STD)），0–0.05 可调
-P_DROP = 0.12         # 模态 dropout：整通道置零概率（10–15% 区间；缺视觉/缺风觉各 6%）
-WD = 1e-4             # 权重衰减
-PATIENCE = 6          # 早停耐心（盯验证损失）
-MIN_EPOCHS = 8        # 早停前最少训练轮数
-VAL_LOSS_SEED = 424242    # 验证损失的固定编码种子（每轮重置 → 损失曲线可比、可复跑）
-VAL_SET_SEED = 20240523   # 验证集固定种子（= v3 的 SEED+2；3 个训练种子共用同一批验证样本）
-OOD_SET_SEED = 20240603   # OOD 集固定种子（3 个训练种子共用）
+# ---------------- [v4] Data augmentation & regularization hyperparameters ----------------
+NOISE_STD = 0.05      # Gaussian noise upper bound (per-sample σ~U(0,NOISE_STD)), 0-0.05 adjustable
+P_DROP = 0.12         # Modality dropout: probability of zeroing entire channel (10-15% range; drop vision/drop wind 6% each)
+WD = 1e-4             # Weight decay
+PATIENCE = 6          # Early stopping patience (monitors validation loss)
+MIN_EPOCHS = 8        # Minimum training epochs before early stopping
+VAL_LOSS_SEED = 424242    # Fixed encoding seed for validation loss (reset each epoch → comparable, reproducible loss curves)
+VAL_SET_SEED = 20240523   # Fixed validation set seed (= v3's SEED+2; 3 training seeds share the same validation samples)
+OOD_SET_SEED = 20240603   # Fixed OOD set seed (shared by 3 training seeds)
 
 
 def load_graph():
@@ -103,26 +103,26 @@ def load_graph():
     src = np.array([e['src'] for e in g['edges']], dtype=np.int64)
     dst = np.array([e['dst'] for e in g['edges']], dtype=np.int64)
     w = np.array([e['weight'] for e in g['edges']], dtype=np.float32)
-    # 按突触后神经元的总入强度归一化，使初始动力学稳定
+    # Normalize by total incoming weight of postsynaptic neuron to stabilize initial dynamics
     abs_sum = np.zeros(n, dtype=np.float32)
     np.add.at(abs_sum, dst, np.abs(w))
     w = w / (abs_sum[dst] + 1e-6) * 1.2
     return g, n, src, dst, w
 
 
-# ---------------- 合成数据集：物理公式生成"威胁状态 -> 线索 -> 标签"（与 v3 逐位一致） ----------------
+# ---------------- Synthetic dataset: physics-formula-generated "threat state -> cues -> labels" (bit-identical to v3) ----------------
 def sample_threat(rng):
-    """返回某一时刻的威胁几何状态（单位 cm, cm/ms -> 换算为 m/s 展示）"""
-    d0 = rng.uniform(3.0, 35.0)                 # 当前距离 cm
-    az = rng.uniform(-math.pi, math.pi)         # 相对果蝇朝向的方位角
+    """Return threat geometry state at a given moment (units cm, cm/ms -> converted to m/s for display)"""
+    d0 = rng.uniform(3.0, 35.0)                 # Current distance cm
+    az = rng.uniform(-math.pi, math.pi)         # Azimuth angle relative to fly orientation
     el = rng.uniform(-0.6, 0.6)
     speed = rng.uniform(0.3, 12.0)              # m/s
-    miss = rng.uniform(0.0, 8.0)                # 脱靶量 cm
-    s_size = rng.uniform(0.3, 3.0)              # 威胁物半径 cm
-    # 视线方向（威胁相对果蝇的位置单位向量）
+    miss = rng.uniform(0.0, 8.0)                # Miss distance cm
+    s_size = rng.uniform(0.3, 3.0)              # Threat object radius cm
+    # Line-of-sight direction (unit vector from threat relative to fly)
     rhat = np.array([math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), math.sin(el)])
     rvec = rhat * d0
-    # 速度方向：瞄准果蝇附近（miss 造成切向分量）
+    # Velocity direction: aimed near the fly (miss creates tangential component)
     to_fly = -rhat
     tangent = np.array([-rhat[1], rhat[0], 0.0])
     tn = tangent / (np.linalg.norm(tangent) + 1e-9)
@@ -133,13 +133,13 @@ def sample_threat(rng):
 
 
 def sample_threat_ood(rng):
-    """[v4] OOD 分布（明显偏移，任何训练/验证环节不得使用）：
-      * 威胁速度上限 12 m/s 且快威胁占比加大：60% ~ U(7,12) + 40% ~ U(3,12)（训练分布为 U(0.3,12)）
-      * 角度分布不同：az ~ U(-2.0, 2.0)（前向偏置，训练为 U(-π,π)）、el ~ U(-0.9, 0.9)（训练为 U(-0.6,0.6)）
-      * 距离更宽 d ~ U(3, 40) cm（训练为 U(3,35)）、脱靶量更大 miss ~ U(0, 10) cm（训练为 U(0,8)）
-      * 风场更强：风压 ×2 再叠加环境风 U(0.01, 0.03) cm/ms（随机方向，样本内恒定）
-      * 传感器噪声 ×2：编码时高斯噪声 σ~U(0, 2·NOISE_STD)（见 run_eval 的 noise_sigma_max）
-      标签规则不变（ṙ<0 且 ttc<50ms 且 r<25cm；esc=−r̂）。"""
+    """[v4] OOD distribution (clearly shifted, never used in any training/validation):
+      * Threat speed cap 12 m/s with increased fast-threat ratio: 60% ~ U(7,12) + 40% ~ U(3,12) (training dist: U(0.3,12))
+      * Different angle distribution: az ~ U(-2.0, 2.0) (forward-biased, training: U(-π,π)), el ~ U(-0.9, 0.9) (training: U(-0.6,0.6))
+      * Wider distance d ~ U(3, 40) cm (training: U(3,35)), larger miss ~ U(0, 10) cm (training: U(0,8))
+      * Stronger wind field: wind pressure ×2 plus ambient wind U(0.01, 0.03) cm/ms (random direction, constant within sample)
+      * Sensor noise ×2: Gaussian noise σ~U(0, 2·NOISE_STD) at encoding (see run_eval noise_sigma_max)
+      Label rule unchanged (ṙ<0 and ttc<50ms and r<25cm; esc=−r̂)."""
     d0 = rng.uniform(3.0, 40.0)
     if rng.random() < 0.6:
         speed = rng.uniform(7.0, 12.0)
@@ -161,53 +161,53 @@ def sample_threat_ood(rng):
 
 
 def cues_and_labels(st):
-    """由物理公式计算两类线索与监督标签（与 v3 逐位一致）。
-    视觉膨胀率：theta = 2*atan(s/r)  ->  dtheta/dt = -2 s r' / (r^2 + s^2)   (rad/s)
-    风压：球体势流近似 u = C s^2 v / r^2，方向沿威胁速度方向                    (任意单位, 归一化后用)
+    """Compute two types of cues and supervision labels from physics formulas (bit-identical to v3).
+    Visual expansion rate: theta = 2*atan(s/r)  ->  dtheta/dt = -2 s r' / (r^2 + s^2)   (rad/s)
+    Wind pressure: sphere potential flow approximation u = C s^2 v / r^2, direction along threat velocity  (arbitrary units, used after normalization)
     """
     r = st['d']
     s = st['s']
-    rdot = float(np.dot(st['v'], st['rhat']))       # cm/ms，接近时为负
+    rdot = float(np.dot(st['v'], st['rhat']))       # cm/ms, negative when approaching
     looming = max(0.0, -2.0 * s * rdot / (r ** 2 + s ** 2)) * 1000.0   # rad/s
-    u = (s ** 2) * np.linalg.norm(st['v']) / (r ** 2 + 1e-9)           # cm/ms 任意单位
+    u = (s ** 2) * np.linalg.norm(st['v']) / (r ** 2 + 1e-9)           # cm/ms arbitrary units
     wind_vec = u * (st['v'] / (np.linalg.norm(st['v']) + 1e-9))
 
     ttc_ms = 1e9 if rdot >= 0 else r / (-rdot) / 1.0  # r(cm)/|rdot|(cm/ms) = ms
     trigger = 1.0 if (rdot < 0 and ttc_ms < TAU_TTC_MS and r < R_TRIGGER_CM) else 0.0
-    esc_dir = -st['rhat'] / (np.linalg.norm(st['rhat']) + 1e-9)   # 逃逸方向 = 背离威胁（威胁在 +r̂ 方向）
+    esc_dir = -st['rhat'] / (np.linalg.norm(st['rhat']) + 1e-9)   # Escape direction = away from threat (threat is in +r̂ direction)
     return looming, wind_vec, trigger, esc_dir, ttc_ms
 
 
 def encode_spikes(rng, looming, wind_vec, threat_az, pd_pref, wind_pref, n_steps,
                   noise_sigma=0.0, drop_mode=0):
-    """泊松发放率编码 -> [T, N_in] 0/1 脉冲（v3 主体逐位一致；v4 新增两个可选参数，默认行为与 v3 相同）
-    [v4] noise_sigma>0：每个输入通道的发放概率叠加 N(0, noise_sigma) 高斯噪声后截断到 [0, 0.9]；
-                      noise_sigma=0 时不消耗 RNG → 与 v3 编码逐位一致。
-    [v4] drop_mode：1=整条视觉通道置零 / 2=整条风觉通道置零 / 0=不置零（模态 dropout，仅训练用）。
-    LPLC2 群体：按偏好方位角编码"威胁方位角"（方位信息 -> 群体码）
-    JO   群体：按敏感轴编码风矢量方向（风的方向本身携带威胁方向信息）
+    """Poisson rate encoding -> [T, N_in] 0/1 spikes (v3 body bit-identical; v4 adds two optional parameters, default behavior same as v3)
+    [v4] noise_sigma>0: Gaussian noise N(0, noise_sigma) added to each input channel firing probability then clipped to [0, 0.9];
+                      noise_sigma=0 skips RNG → bit-identical to v3 encoding.
+    [v4] drop_mode: 1=zero entire vision channel / 2=zero entire wind channel / 0=no zeroing (modality dropout, training only).
+    LPLC2 population: encodes "threat azimuth" by preferred azimuth (azimuth info -> population code)
+    JO population: encodes wind vector direction by sensitive axis (wind direction itself carries threat direction info)
     """
     n_vis = pd_pref.shape[0]
     n_in = n_vis + wind_pref.shape[0]
-    loom_n = min(1.0, looming / (looming + 2.0))          # 饱和归一
+    loom_n = min(1.0, looming / (looming + 2.0))          # Saturating normalization
     wind_mag = np.linalg.norm(wind_vec)
-    wind_n = min(1.0, wind_mag / (wind_mag + 0.012))   # Johnston's 器为高灵敏机械感受器（半饱和常数取小）
+    wind_n = min(1.0, wind_mag / (wind_mag + 0.012))   # Johnston's organ is a high-sensitivity mechanoreceptor (half-saturation constant set small)
 
     rates = np.full(n_in, BASE_RATE_HZ, dtype=np.float32)
 
-    # 视觉通道（索引 0 .. n_vis-1）：偏好方位与威胁方位匹配度整流
+    # Vision channel (indices 0 .. n_vis-1): preferred azimuth vs threat azimuth match rectified
     cos_v = np.cos(pd_pref[:, 0] - threat_az)
     vis_drive = loom_n * np.clip(cos_v, 0.0, None) * RATE_MAX_HZ * 0.8
     rates[:n_vis] += vis_drive
 
-    # 风觉通道：风矢量在敏感轴上的投影整流
+    # Wind channel: wind vector projection onto sensitive axis rectified
     wdir = wind_vec / (wind_mag + 1e-9)
     proj = wind_pref @ wdir
     wind_drive = wind_n * np.clip(proj, 0.0, None) * RATE_MAX_HZ * 0.8
     rates[n_vis:] += wind_drive
 
     p = np.clip(rates * DT_MS / 1000.0, 0.0, 0.9)
-    if noise_sigma > 0.0:   # [v4] 传感器输入高斯噪声（0 时不走该分支，RNG 流与 v3 一致）
+    if noise_sigma > 0.0:   # [v4] Sensor input Gaussian noise (skips branch when 0, RNG stream identical to v3)
         p = np.clip(p + rng.normal(0.0, noise_sigma, size=n_in), 0.0, 0.9)
     spikes = (rng.random((n_steps, n_in)) < p[None, :]).astype(np.float32)
     if drop_mode == 1:
@@ -218,7 +218,7 @@ def encode_spikes(rng, looming, wind_vec, threat_az, pd_pref, wind_pref, n_steps
 
 
 def build_dataset(n, seed):
-    """[v3 逐位一致] 训练/验证分布。"""
+    """[v3 bit-identical] Training/validation distribution."""
     rng = np.random.default_rng(seed)
     samples = []
     for _ in range(n):
@@ -230,13 +230,13 @@ def build_dataset(n, seed):
 
 
 def build_ood_dataset(n, seed):
-    """[v4] OOD 分布（明显偏移）；标签规则与训练/验证完全一致。"""
+    """[v4] OOD distribution (clearly shifted); label rules identical to training/validation."""
     rng = np.random.default_rng(seed)
     samples = []
     for _ in range(n):
         st = sample_threat_ood(rng)
         looming, wind_vec, trig, esc, ttc = cues_and_labels(st)
-        # 风场更强：风压线索 ×2 再叠加环境风（随机方向、样本内恒定）
+        # Stronger wind field: wind pressure cue ×2 plus ambient wind (random direction, constant within sample)
         wind_cue = wind_vec * 2.0
         amb_dir = rng.normal(size=3)
         amb_dir = amb_dir / (np.linalg.norm(amb_dir) + 1e-9)
@@ -247,7 +247,7 @@ def build_ood_dataset(n, seed):
 
 
 class EscapeSNN(nn.Module):
-    """以 FlyWire 稀疏拓扑为固定 mask 的 LIF 递归网络；仅训练边权与两个读出头。（与 v3 逐位一致）"""
+    """LIF recurrent network with FlyWire sparse topology as fixed mask; only trains edge weights and two readout heads. (Bit-identical to v3)"""
 
     def __init__(self, n, src, dst, w0, in_vision, in_wind, hub_idx, out_idx):
         super().__init__()
@@ -270,7 +270,7 @@ class EscapeSNN(nn.Module):
 
     def forward(self, spikes):
         """spikes: [T, B, N_in] -> trig_logit [B], dir_pred [B,3], rate [], v_hub_max [B],
-        first_step [B]（GF 首次放电步，未放电为 T）, hub_spk [B]（GF 放电总数）"""
+        first_step [B] (GF first spike step, T if not fired), hub_spk [B] (GF total spike count)"""
         T, B, _ = spikes.shape
         device = spikes.device
         v = torch.zeros(self.n, B, device=device)
@@ -286,7 +286,7 @@ class EscapeSNN(nn.Module):
         for t in range(T):
             msg = (self.w * self.w_mask)[:, None] * s[self.srcb]         # [E, B]
             cur = torch.zeros(self.n, B, device=device)
-            cur = cur.index_add(0, self.dstb, msg)                       # 稀疏递归电流
+            cur = cur.index_add(0, self.dstb, msg)                       # Sparse recurrent current
 
             xin = spikes[t] * self.in_gain[None, :]                      # [B, N_in]
             cur[self.in_vision] += xin[:, : self.in_vision.numel()].T
@@ -300,7 +300,7 @@ class EscapeSNN(nn.Module):
 
             hv = v[self.hub_idx].T                       # [B, n_hub]
             v_hub_max = torch.maximum(v_hub_max, hv.max(dim=1).values)
-            hs = s[self.hub_idx].T.sum(dim=1) > 0        # 本步 GF 是否放电
+            hs = s[self.hub_idx].T.sum(dim=1) > 0        # Whether GF fires this step
             first_step = torch.where(hs & ~fired_any,
                                      torch.full_like(first_step, float(t + 1)), first_step)
             fired_any = fired_any | hs
@@ -314,21 +314,21 @@ class EscapeSNN(nn.Module):
 def make_pref(n_vis, n_wind, seed):
     rng = np.random.default_rng(seed)
     pd_pref = np.zeros((n_vis, 2), dtype=np.float32)
-    pd_pref[:, 0] = np.linspace(-math.pi, math.pi, n_vis, endpoint=False)  # 偏好方位
-    pd_pref[:, 1] = rng.uniform(0.5, 1.0, n_vis)                            # 增益异质性（保留参数：当前未接入前向，维持两端 RNG 顺序一致，勿删）
+    pd_pref[:, 0] = np.linspace(-math.pi, math.pi, n_vis, endpoint=False)  # Preferred azimuth
+    pd_pref[:, 1] = rng.uniform(0.5, 1.0, n_vis)                            # Gain heterogeneity (retained param: not connected to forward pass, keeps RNG order consistent, do not delete)
     wind_pref = rng.normal(size=(n_wind, 3)).astype(np.float32)
     wind_pref /= np.linalg.norm(wind_pref, axis=1, keepdims=True)
     return pd_pref, wind_pref
 
 
 def compute_loss(trig_logit, dir_pred, rate, v_hub_max, y_trig, y_esc, device):
-    """[v3 损失式逐位一致] 抽出共用（训练与验证损失用同一式，过拟合体检才可比）。"""
+    """[v3 loss formula bit-identical] Factored out for shared use (training and validation use the same formula for overfitting health check comparability)."""
     bce = nn.functional.binary_cross_entropy_with_logits(trig_logit, y_trig)
     dn = dir_pred / (dir_pred.norm(dim=1, keepdim=True) + 1e-8)
     cos_loss = (1.0 - (dn * y_esc).sum(dim=1))
     dir_loss = (cos_loss * y_trig).sum() / (y_trig.sum() + 1e-6)
-    # 直接对"GF 是否放电"这一机制化触发判据做监督（v_hub_max 越过 VTH 即放电）
-    # pos_weight=2.5：错失威胁的代价 > 误报（生物逃逸的不对称代价），提高对威胁的敏感度
+    # Direct supervision on "whether GF fires" mechanism-based trigger criterion (fires when v_hub_max exceeds VTH)
+    # pos_weight=2.5: cost of missing threat > false alarm (asymmetric cost of biological escape), increases threat sensitivity
     gf_loss = nn.functional.binary_cross_entropy_with_logits(
         (v_hub_max - VTH) * 4.0, y_trig,
         pos_weight=torch.tensor(2.5, device=device))
@@ -336,7 +336,7 @@ def compute_loss(trig_logit, dir_pred, rate, v_hub_max, y_trig, y_esc, device):
 
 
 def encode_batch(rng, samples, idx, pd_pref, wind_pref, augment, noise_std):
-    """[v4] 编码一个 batch；augment=True 时施加高斯噪声 + 模态 dropout（仅训练用）。"""
+    """[v4] Encode a batch; when augment=True, applies Gaussian noise + modality dropout (training only)."""
     n_vis = pd_pref.shape[0]
     n_in = n_vis + wind_pref.shape[0]
     B = len(idx)
@@ -349,8 +349,8 @@ def encode_batch(rng, samples, idx, pd_pref, wind_pref, augment, noise_std):
         drop_mode = 0
         if augment:
             if noise_std > 0:
-                sigma = float(rng.uniform(0.0, noise_std))     # 每样本 σ~U(0, NOISE_STD)
-            if rng.random() < P_DROP:                          # 模态 dropout：整通道置零
+                sigma = float(rng.uniform(0.0, noise_std))     # Per-sample σ~U(0, NOISE_STD)
+            if rng.random() < P_DROP:                          # Modality dropout: zero entire channel
                 drop_mode = 1 if rng.random() < 0.5 else 2
         sp[:, k, :] = encode_spikes(rng, st['looming'], st['wind'], st['az'], pd_pref, wind_pref,
                                     T_STEPS, noise_sigma=sigma, drop_mode=drop_mode)
@@ -360,8 +360,8 @@ def encode_batch(rng, samples, idx, pd_pref, wind_pref, augment, noise_std):
 
 
 def run_eval(model, samples, pd_pref, wind_pref, device, mode='fusion', noise_sigma_max=0.0):
-    """mode: fusion / vision_only / wind_only —— 与 v3 run_eval 逐位一致（B=1、rng(777)、每模式独立重置），
-    [v4] 仅新增 noise_sigma_max（评估编码高斯噪声上限；验证=0 与 v3 同口径，OOD=2*NOISE_STD）。"""
+    """mode: fusion / vision_only / wind_only — bit-identical to v3 run_eval (B=1, rng(777), each mode independently reset),
+    [v4] only adds noise_sigma_max (evaluation encoding Gaussian noise upper bound; validation=0 same as v3, OOD=2*NOISE_STD)."""
     model.eval()
     rng = np.random.default_rng(777)
     n_vis = pd_pref.shape[0]
@@ -415,15 +415,15 @@ def run_eval(model, samples, pd_pref, wind_pref, device, mode='fusion', noise_si
         'escape_success_rate': succ,
         'dir_mae_deg': float(np.mean(ang_errs)) if ang_errs else float('nan'),
         'gf_first_spike_ms': float(np.mean(latencies)) if latencies else float('nan'),
-        'threat_recall': tp / max(1, tp + fn),            # [v4 新增诊断] P(GF放电|yTrig=1)
-        'false_alarm_rate': fp / max(1, fp + tn),         # [v4 新增诊断] P(GF放电|yTrig=0)
+        'threat_recall': tp / max(1, tp + fn),            # [v4 new diagnostic] P(GF fires|yTrig=1)
+        'false_alarm_rate': fp / max(1, fp + tn),         # [v4 new diagnostic] P(GF fires|yTrig=0)
         'n_samples': len(samples),
         'n_threat': n_pos,
     }
 
 
 def val_loss_of(model, val_samples, pd_pref, wind_pref, device):
-    """[v4] 验证损失：同损失式、干净编码（无增强）、固定编码种子（每轮重置 → 曲线只反映模型变化）。"""
+    """[v4] Validation loss: same loss formula, clean encoding (no augmentation), fixed encoding seed (reset each epoch → curves reflect only model changes)."""
     model.eval()
     rng = np.random.default_rng(VAL_LOSS_SEED)
     tot, cnt = 0.0, 0
@@ -444,7 +444,7 @@ def val_loss_of(model, val_samples, pd_pref, wind_pref, device):
 
 def main():
     global P_DROP
-    ap = argparse.ArgumentParser(description='v4 阶段 A 训练（数据升级 + 防过拟合）')
+    ap = argparse.ArgumentParser(description='v4 Phase A training (data upgrade + anti-overfitting)')
     ap.add_argument('--seed', type=int, default=20240521)
     ap.add_argument('--n-train', type=int, default=N_TRAIN_DEFAULT)
     ap.add_argument('--epochs', type=int, default=EPOCHS)
@@ -453,7 +453,7 @@ def main():
     ap.add_argument('--wd', type=float, default=WD)
     ap.add_argument('--patience', type=int, default=PATIENCE)
     ap.add_argument('--resume', action='store_true')
-    ap.add_argument('--threads', type=int, default=0, help='torch CPU 线程数（0=默认；多种子并行时用它限流）')
+    ap.add_argument('--threads', type=int, default=0, help='torch CPU thread count (0=default; use to throttle with multi-seed parallel)')
     ap.add_argument('--speed-test', action='store_true')
     args = ap.parse_args()
     if args.threads > 0:
@@ -475,21 +475,21 @@ def main():
     hub = g['hub_gf_indices']
     out = g['output_indices']
     n_vis, n_wind = len(in_v), len(in_w)
-    print(f'[v4] 图：{n} 节点 / {len(src)} 边 | 视觉入 {n_vis} | 风觉入 {n_wind} | GF {len(hub)} | 输出 {len(out)}')
-    print(f'代理梯度: {USING}')
-    print(f'[v4] 训练种子={SEED} | N_TRAIN={args.n_train} | 高斯噪声 σ~U(0,{args.noise_std}) | '
-          f'模态 dropout p={P_DROP} | wd={args.wd} | 早停 patience={args.patience} (盯验证损失)')
+    print(f'[v4] Graph: {n} nodes / {len(src)} edges | vision input {n_vis} | wind input {n_wind} | GF {len(hub)} | output {len(out)}')
+    print(f'Surrogate gradient: {USING}')
+    print(f'[v4] train_seed={SEED} | N_TRAIN={args.n_train} | Gaussian noise σ~U(0,{args.noise_std}) | '
+          f'modality dropout p={P_DROP} | wd={args.wd} | early stopping patience={args.patience} (monitors val loss)')
 
     t_data = time.time()
-    pd_pref, wind_pref = make_pref(n_vis, n_wind, SEED)          # [v4] pref 随训练种子（v3: make_pref(...,SEED)）
-    train_samples, _ = build_dataset(args.n_train, SEED + 1)     # 训练集随种子
-    val_samples, _ = build_dataset(N_VAL, VAL_SET_SEED)          # [v4] 验证集跨种子固定（= v3 同批样本）
-    ood_samples = build_ood_dataset(N_OOD, OOD_SET_SEED)         # [v4] OOD 集跨种子固定，训练/验证禁用
+    pd_pref, wind_pref = make_pref(n_vis, n_wind, SEED)          # [v4] pref uses training seed (v3: make_pref(...,SEED))
+    train_samples, _ = build_dataset(args.n_train, SEED + 1)     # Training set follows seed
+    val_samples, _ = build_dataset(N_VAL, VAL_SET_SEED)          # [v4] Validation set fixed across seeds (= same samples as v3)
+    ood_samples = build_ood_dataset(N_OOD, OOD_SET_SEED)         # [v4] OOD set fixed across seeds, not used in training/validation
     n_pos_tr = sum(1 for s in train_samples if s['trig'] > 0.5)
     n_pos_va = sum(1 for s in val_samples if s['trig'] > 0.5)
     n_pos_ood = sum(1 for s in ood_samples if s['trig'] > 0.5)
-    print(f'数据生成 {time.time() - t_data:.1f}s | 训练 {len(train_samples)}（威胁 {n_pos_tr}）| '
-          f'验证 {len(val_samples)}（威胁 {n_pos_va}）| OOD {len(ood_samples)}（威胁 {n_pos_ood}）')
+    print(f'Data generation {time.time() - t_data:.1f}s | train {len(train_samples)} (threat {n_pos_tr}) | '
+          f'val {len(val_samples)} (threat {n_pos_va}) | OOD {len(ood_samples)} (threat {n_pos_ood})')
 
     model = EscapeSNN(n, src, dst, w0, in_v, in_w, hub, out).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=args.wd)   # [v4] weight_decay=1e-4
@@ -508,19 +508,19 @@ def main():
         hist = ck['hist']
         best_state, best_val, best_ep, bad = ck['best_state'], ck['best_val'], ck['best_ep'], ck['bad']
         start_ep = ck['epoch'] + 1
-        print(f'== 断点续训：从第 {start_ep} 轮继续（历史 {len(hist)} 轮，最优 val={best_val:.4f}@ep{best_ep}）==')
+        print(f'== Resume from checkpoint: starting from epoch {start_ep} (history {len(hist)} epochs, best val={best_val:.4f}@ep{best_ep}) ==')
 
     t0 = time.time()
     for ep in range(start_ep, args.epochs + 1):
         model.train()
-        rng = np.random.default_rng(SEED + 100 + ep)             # 每轮独立种子（续训也逐位可复现）
+        rng = np.random.default_rng(SEED + 100 + ep)             # Independent seed per epoch (reproducible even with resume)
         order = rng.permutation(len(train_samples))
         tot = 0.0
         for i in range(0, len(train_samples), BATCH):
             idx = order[i: i + BATCH]
             B = len(idx)
             sp, trigs, escs = encode_batch(rng, train_samples, idx, pd_pref, wind_pref,
-                                           augment=True, noise_std=args.noise_std)   # [v4] 输入增强
+                                           augment=True, noise_std=args.noise_std)   # [v4] Input augmentation
             x = torch.tensor(sp, device=device)
             y_trig = torch.tensor(trigs, device=device)
             y_esc = torch.tensor(escs, device=device)
@@ -535,7 +535,7 @@ def main():
             tot += float(loss.detach()) * B
         scheduler.step()
         train_loss = tot / len(train_samples)
-        vloss = val_loss_of(model, val_samples, pd_pref, wind_pref, device)          # [v4] 验证损失
+        vloss = val_loss_of(model, val_samples, pd_pref, wind_pref, device)          # [v4] Validation loss
         hist.append({'epoch': ep, 'loss': train_loss, 'val_loss': vloss,
                      'lr': scheduler.get_last_lr()[0], 'time_s': round(time.time() - t0, 1)})
         improved = vloss < best_val - 1e-6
@@ -559,19 +559,19 @@ def main():
                        'state': 'running'}, f, ensure_ascii=False, indent=2)
 
         if bad >= args.patience and ep >= MIN_EPOCHS:
-            print(f'== 早停：验证损失连续 {args.patience} 轮未改善（最优 ep{best_ep} val={best_val:.4f}）==', flush=True)
+            print(f'== Early stopping: validation loss did not improve for {args.patience} consecutive epochs (best ep{best_ep} val={best_val:.4f}) ==', flush=True)
             break
 
     if best_state is not None:
         model.load_state_dict(best_state)
-        print(f'\n已恢复最优权重（val_loss={best_val:.4f} @ ep{best_ep}）')
+        print(f'\nRestored best weights (val_loss={best_val:.4f} @ ep{best_ep})')
 
-    print('\n===== 对照评估（同一验证集 1200 条，干净编码，与 v3 同口径） =====')
+    print('\n===== Benchmark evaluation (same 1200-sample validation set, clean encoding, same protocol as v3) =====')
     results = {}
     for mode in ('fusion', 'vision_only', 'wind_only'):
         results[mode] = run_eval(model, val_samples, pd_pref, wind_pref, device, mode=mode)
 
-    print(f'===== OOD 评估（{N_OOD} 条偏移分布，传感器噪声×2；训练/验证从未使用） =====')
+    print(f'===== OOD evaluation ({N_OOD} shifted-distribution samples, sensor noise×2; never used in training/validation) =====')
     ood_results = {}
     for mode in ('fusion', 'vision_only', 'wind_only'):
         ood_results[mode] = run_eval(model, ood_samples, pd_pref, wind_pref, device, mode=mode,
@@ -580,15 +580,15 @@ def main():
     priming = priming_test(model, pd_pref, wind_pref, device)
 
     fmt = '{:<12}{:>16}{:>16}{:>14}{:>14}{:>14}'.format(
-        '组别', '触发准确率(GF)', '触发准确率(头)', '避障成功率', '方向误差(°)', 'GF潜伏期(ms)')
-    for tag, block in (('验证集', results), ('OOD集', ood_results)):
+        'Group', 'Trigger Acc(GF)', 'Trigger Acc(Head)', 'Escape Success', 'Direction Error(°)', 'GF Latency(ms)')
+    for tag, block in (('Val Set', results), ('OOD Set', ood_results)):
         print(f'\n[{tag}]')
         print(fmt)
         for mode, r in block.items():
             print('{:<12}{:>16.3f}{:>16.3f}{:>14.3f}{:>14.1f}{:>14.2f}'.format(
                 mode, r['trigger_acc_gf_spike'], r['trigger_acc_head'],
                 r['escape_success_rate'], r['dir_mae_deg'], r['gf_first_spike_ms']))
-    print('\n弱线索预激活(priming)测试 —— GF 放电比例与首次放电潜伏期：')
+    print('\nWeak cue priming test — GF firing rate and first spike latency:')
     for tag, r in priming.items():
         print('  {:<14} fire_rate={:.2f}  first_spike={:.2f} ms'.format(
             tag, r['fire_rate'], r['first_spike_ms']))
@@ -598,11 +598,11 @@ def main():
         json.dump({'seed': SEED, 'epoch': len(hist), 'epochs_max': args.epochs,
                    'best_val': best_val, 'best_epoch': best_ep, 'state': 'done'}, f,
                   ensure_ascii=False, indent=2)
-    print(f'\n导出完成: v4/snn_trained_seed{SEED}.json / v4/metrics_seed{SEED}.json / v4/training_curve_seed{SEED}.png')
+    print(f'\nExport complete: v4/snn_trained_seed{SEED}.json / v4/metrics_seed{SEED}.json / v4/training_curve_seed{SEED}.png')
 
 
 def priming_test(model, pd_pref, wind_pref, device, repeats=60):
-    """中等强度的视觉/风觉线索单独或叠加时，统计 GF 是否放电与首次放电潜伏期。（与 v3 逐位一致）"""
+    """Statistics on whether GF fires and first spike latency when visual/wind cues are presented individually or together at medium intensity. (Bit-identical to v3)"""
     rng = np.random.default_rng(4242)
     n_vis = pd_pref.shape[0]
     out = {}
@@ -631,11 +631,11 @@ def export_model(model, results, ood_results, priming, hist, seed, args):
     payload = {
         'meta': {
             'dt_ms': DT_MS, 't_steps': T_STEPS, 'beta': BETA, 'threshold': VTH,
-            'weight_init': 'W0 = sign(nt)*log1p(syn_count) / per-post |W| sum * 1.2（FlyWire 拓扑 mask 固定）',
-            'note': '权重为合成任务上微调结果；拓扑与极性来自 FlyWire，非生理实测权重',
-            'v4_stage': 'A（数据升级+防过拟合）',
+            'weight_init': 'W0 = sign(nt)*log1p(syn_count) / per-post |W| sum * 1.2 (FlyWire topology mask fixed)',
+            'note': 'Weights are fine-tuned on the synthetic task; topology and polarity from FlyWire, not physiological measurements',
+            'v4_stage': 'A (data upgrade + anti-overfitting)',
             'train_seed': int(seed),
-            'pref_seed': int(seed),   # make_pref 用的种子（导出网页数据时必须用同一种子重建 pd_pref/wind_pref）
+            'pref_seed': int(seed),   # Seed used by make_pref (must use same seed to reconstruct pd_pref/wind_pref for web data export)
             'dir_flipped': False,
         },
         'num_nodes': int(model.n),
@@ -657,7 +657,7 @@ def export_model(model, results, ood_results, priming, hist, seed, args):
     with open(os.path.join(BASE, f'snn_trained_seed{seed}.json'), 'w', encoding='utf-8') as f:
         json.dump(payload, f)
 
-    def _nan_to_none(o):  # NaN -> null：metrics JSON 保持严格 JSON 合法（可被 Node require）
+    def _nan_to_none(o):  # NaN -> null: metrics JSON stays strictly valid JSON (can be Node require'd)
         if isinstance(o, float) and o != o:
             return None
         if isinstance(o, dict):
@@ -675,7 +675,7 @@ def export_model(model, results, ood_results, priming, hist, seed, args):
                    'p_drop': P_DROP, 'wd': args.wd, 'patience': args.patience,
                    'val_set_seed': VAL_SET_SEED, 'ood_set_seed': OOD_SET_SEED,
                    'val_loss_seed': VAL_LOSS_SEED, 'batch': BATCH, 'lr': LR,
-                   'checkpoint_selection': 'val_loss 最小（v3: 每5轮 score 最优）'},
+                   'checkpoint_selection': 'min val_loss (v3: best score every 5 epochs)'},
     })
     with open(os.path.join(BASE, f'metrics_seed{seed}.json'), 'w', encoding='utf-8') as f:
         json.dump(metrics, f, indent=2, ensure_ascii=False)
@@ -692,11 +692,11 @@ def export_model(model, results, ood_results, priming, hist, seed, args):
         plt.legend(); plt.tight_layout()
         plt.savefig(os.path.join(BASE, f'training_curve_seed{seed}.png'), dpi=120)
     except Exception as e:
-        print('(绘图跳过:', e, ')')
+        print('(Plot skipped:', e, ')')
 
 
 def speed_test(args):
-    """[v4] 测速：数据生成 / 编码 / 训练批次 / 验证损失 / B=1 评估，各计时并外推单 epoch 与总时长。"""
+    """[v4] Speed test: data generation / encoding / training batch / validation loss / B=1 evaluation, each timed and extrapolated for single epoch and total duration."""
     SEED = args.seed
     random.seed(SEED); np.random.seed(SEED); torch.manual_seed(SEED)
     device = torch.device('cpu')
@@ -720,7 +720,7 @@ def speed_test(args):
         encode_batch(rng, s2k, idx, pd_pref, wind_pref, augment=True, noise_std=args.noise_std)
     rep['encode_batch64_ms'] = round((time.time() - t) / 100 * 1000, 1)
 
-    # 训练批次（第 1 批为预热，不计）
+    # Training batch (first iteration is warmup, not counted)
     for it in range(9):
         idx = list(range(64))
         sp, trigs, escs = encode_batch(rng, s2k, idx, pd_pref, wind_pref, augment=True, noise_std=args.noise_std)

@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-train_snn_v4b.py —— v4 阶段 B：威胁真实性鉴别 + TTC 回归
+train_snn_v4b.py —— v4 Phase B: Threat Authenticity Discrimination + TTC Regression
 ===========================================================
-在 train_snn_v4.py 基础上新增：
-  1) **威胁真实性二分类头** (head_real)：训练时随机给 ~10% 样本注入"假威胁"（高膨胀率但极远/
-     极快但方向偏>60°），标签为 0；模型同时预测触发+方向+真实性；推理时真实性低→不触发。
-     损失加 0.3·BCE(真实性)。
-  2) **TTC 回归头** (head_ttc)：回归目标 = min(ttc_ms, 100) / 50（归一化）；损失加 0.2·MSE(ttc)。
+Adds the following to train_snn_v4.py:
+  1) **Threat authenticity binary classification head** (head_real): during training, ~10% of samples are injected with "fake threats" (high expansion rate but very far /
+     very fast but direction offset >60°), labeled as 0; model simultaneously predicts trigger + direction + authenticity; low authenticity at inference → no trigger.
+     Loss adds 0.3·BCE(authenticity).
+  2) **TTC regression head** (head_ttc): regression target = min(ttc_ms, 100) / 50 (normalized); loss adds 0.2·MSE(ttc).
 
-不变项：架构（1871节点/45524边拓扑）、LIF 参数、窗口12步、>0阈值、
-  其余损失项（0.5·BCE + 0.5·方向余弦 + 2e-3·rate·T + 0.6·GF放电BCE）、
-  Adam+余弦退火、BATCH=64、EPOCHS=25、LR=2e-3、种子20240521。
+Unchanged: architecture (1871 nodes/45524 edges topology), LIF params, window 12 steps, >0 threshold,
+  remaining loss terms (0.5·BCE + 0.5·direction cosine + 2e-3·rate·T + 0.6·GF firing BCE),
+  Adam+cosine annealing, BATCH=64, EPOCHS=25, LR=2e-3, seed 20240521.
 
-用法：
+Usage:
   py -3.13 v4\\train_snn_v4b.py --seed 20240521
   py -3.13 v4\\train_snn_v4b.py --seed 20240521 --resume
 """
@@ -47,7 +47,7 @@ except Exception:
         return _FastSigmoid.apply(x)
     USING = 'manual fast-sigmoid'
 
-# ── 超参（与 v4 一致，v4b 新增项标注 [v4b]）───────────────────────
+# ── Hyperparameters (consistent with v4, new items in v4b marked [v4b]) ────────────────────────
 DT_MS = 1.0
 T_STEPS = 12
 BETA = 0.85
@@ -72,16 +72,16 @@ VAL_LOSS_SEED = 424242
 VAL_SET_SEED = 20240523
 OOD_SET_SEED = 20240603
 
-# [v4b] 假威胁注入
-P_FAKE = 0.10          # batch 中假威胁比例 ~10%
-FAKE_D_MIN = 30.0      # 假威胁-远距离型：d >= 30 cm（膨胀率高但极远，不应触发）
-FAKE_AZ_OFFSET = 1.05  # 假威胁-偏航型：az 偏移 > ~60°（1.05 rad ≈ 60.2°）
+# [v4b] Fake threat injection
+P_FAKE = 0.10          # Fake threat ratio per batch ~10%
+FAKE_D_MIN = 30.0      # Fake threat - far distance type: d >= 30 cm (high expansion rate but very far, should not trigger)
+FAKE_AZ_OFFSET = 1.05  # Fake threat - yaw type: az offset > ~60° (1.05 rad ≈ 60.2°)
 
-# [v4b] 损失权重
-W_REAL_BCE = 0.3       # 真实性 BCE 权重
-W_TTC_MSE = 0.2        # TTC MSE 权重
-TTC_NORM = 50.0        # TTC 归一化常数（ms）
-TTC_MAX_MS = 100.0     # TTC 截断上限
+# [v4b] Loss weights
+W_REAL_BCE = 0.3       # Authenticity BCE weight
+W_TTC_MSE = 0.2        # TTC MSE weight
+TTC_NORM = 50.0        # TTC normalization constant (ms)
+TTC_MAX_MS = 100.0     # TTC clipping upper bound
 
 
 def load_graph():
@@ -97,7 +97,7 @@ def load_graph():
     return g, n, src, dst, w
 
 
-# ── 合成数据（与 v4 逐位一致）─────────────────────────────────────
+# ── Synthetic data (bit-identical to v4) ──────────────────────────────────────
 def sample_threat(rng):
     d0 = rng.uniform(3.0, 35.0)
     az = rng.uniform(-math.pi, math.pi)
@@ -147,25 +147,25 @@ def cues_and_labels(st):
     return looming, wind_vec, trigger, esc_dir, ttc_ms
 
 
-# [v4b] ── 假威胁生成：高膨胀率但不应触发的真实物理不合理场景 ──────────
+# [v4b] ── Fake threat generation: physically implausible scenarios with high expansion rate but should not trigger ──────────
 def sample_fake_threat(rng):
-    """生成假威胁：两种子类型随机选一种。
-    类型A（远距离型）：d >= 30cm，膨胀率可能高但距离远，不应触发逃逸。
-    类型B（偏航型）：az 偏移 >60°，速度快但方向偏离果蝇，不应触发逃逸。
-    两种类型的 trig 标签均为 0（假威胁不触发逃逸）。"""
+    """Generate fake threats: randomly select one of two subtypes.
+    Type A (far distance): d >= 30cm, expansion rate may be high but distance is far, should not trigger escape.
+    Type B (yaw): az offset >60°, speed is fast but direction deviates from fly, should not trigger escape.
+    Both types have trig label = 0 (fake threats do not trigger escape)."""
     if rng.random() < 0.5:
-        # 类型A：远距离——膨胀率信号强但距离远于触发阈值
-        d0 = rng.uniform(FAKE_D_MIN, 50.0)       # 远距离 ≥30cm
+        # Type A: far distance — strong looming signal but distance exceeds trigger threshold
+        d0 = rng.uniform(FAKE_D_MIN, 50.0)       # Far distance ≥30cm
         az = rng.uniform(-math.pi, math.pi)
-        speed = rng.uniform(5.0, 12.0)            # 速度快 → 高膨胀率
-        miss = rng.uniform(0.0, 3.0)              # 小脱靶 → 正面对准
+        speed = rng.uniform(5.0, 12.0)            # Fast speed → high expansion rate
+        miss = rng.uniform(0.0, 3.0)              # Small miss → head-on alignment
     else:
-        # 类型B：偏航——速度快但方向偏离果蝇 >60°
-        d0 = rng.uniform(5.0, 20.0)               # 距离正常
+        # Type B: yaw — fast speed but direction deviates from fly by >60°
+        d0 = rng.uniform(5.0, 20.0)               # Normal distance
         az_offset = rng.choice([-1, 1]) * rng.uniform(FAKE_AZ_OFFSET, math.pi)
         az = rng.uniform(-math.pi, math.pi)
-        az = (az + az_offset) % (2*math.pi) - math.pi  # 叠加偏移
-        speed = rng.uniform(8.0, 15.0)            # 更快
+        az = (az + az_offset) % (2*math.pi) - math.pi  # Superimpose offset
+        speed = rng.uniform(8.0, 15.0)            # Faster
         miss = rng.uniform(0.0, 8.0)
     el = rng.uniform(-0.3, 0.3)
     s_size = rng.uniform(0.5, 2.5)
@@ -232,7 +232,7 @@ def build_ood_dataset(n, seed):
     return samples
 
 
-# [v4b] ── EscapeSNN 新增 head_real + head_ttc ─────────────────────
+# [v4b] ── EscapeSNN adds head_real + head_ttc ─────────────────────
 class EscapeSNN(nn.Module):
     def __init__(self, n, src, dst, w0, in_vision, in_wind, hub_idx, out_idx):
         super().__init__()
@@ -248,16 +248,16 @@ class EscapeSNN(nn.Module):
         self.hub_idx = torch.tensor(hub_idx, dtype=torch.long)
         self.out_idx = torch.tensor(out_idx, dtype=torch.long)
         self.in_gain = nn.Parameter(torch.ones(self.in_vision.numel()+self.in_wind.numel())*1.0)
-        # 原有头
+        # Original heads
         self.head_trig = nn.Linear(self.hub_idx.numel(), 1)
         self.head_dir = nn.Linear(self.out_idx.numel(), 3)
-        # [v4b] 新增头
-        self.head_real = nn.Linear(self.hub_idx.numel(), 1)   # 真实性二分类
-        self.head_ttc = nn.Linear(self.hub_idx.numel(), 1)     # TTC 回归
+        # [v4b] New heads
+        self.head_real = nn.Linear(self.hub_idx.numel(), 1)   # Authenticity binary classification
+        self.head_ttc = nn.Linear(self.hub_idx.numel(), 1)     # TTC regression
 
     def forward(self, spikes):
         """spikes: [T, B, N_in] -> trig_logit, dir_pred, rate, v_hub_max, first_step, hub_spk,
-                    real_logit [B], ttc_pred [B]（v4b 新增两个输出）"""
+                    real_logit [B], ttc_pred [B] (v4b adds two new outputs)"""
         T, B, _ = spikes.shape
         device = spikes.device
         v = torch.zeros(self.n, B, device=device)
@@ -289,11 +289,11 @@ class EscapeSNN(nn.Module):
             fired_any = fired_any | hs
             hub_spk = hub_spk + s[self.hub_idx].T.sum(dim=1)
 
-        hub_feat = v_hub_sum / T                    # [B, n_hub] 共用特征
+        hub_feat = v_hub_sum / T                    # [B, n_hub] shared features
         trig_logit = self.head_trig(hub_feat).squeeze(-1)
         dir_pred = self.head_dir(v_out_sum / T)
-        real_logit = self.head_real(hub_feat).squeeze(-1)   # [v4b] 真实性 logit
-        ttc_pred = self.head_ttc(hub_feat).squeeze(-1)      # [v4b] TTC 预测（归一化）
+        real_logit = self.head_real(hub_feat).squeeze(-1)   # [v4b] Authenticity logit
+        ttc_pred = self.head_ttc(hub_feat).squeeze(-1)      # [v4b] TTC prediction (normalized)
         return trig_logit, dir_pred, spike_count/T, v_hub_max, first_step, hub_spk, real_logit, ttc_pred
 
 
@@ -307,11 +307,11 @@ def make_pref(n_vis, n_wind, seed):
     return pd_pref, wind_pref
 
 
-# [v4b] ── 损失函数：原有4项 + 真实性BCE + TTC MSE ──────────────
+# [v4b] ── Loss function: original 4 terms + authenticity BCE + TTC MSE ──────────────
 def compute_loss(trig_logit, dir_pred, rate, v_hub_max, y_trig, y_esc,
                  real_logit, ttc_pred, y_real, y_ttc, device):
-    """v4b 损失：原有 + 0.3·BCE(真实性) + 0.2·MSE(ttc)"""
-    # ── 原有4项（与 v4 逐位一致）──
+    """v4b loss: original + 0.3·BCE(authenticity) + 0.2·MSE(ttc)"""
+    # ── Original 4 terms (bit-identical to v4) ──
     bce = nn.functional.binary_cross_entropy_with_logits(trig_logit, y_trig)
     dn = dir_pred / (dir_pred.norm(dim=1, keepdim=True)+1e-8)
     cos_loss = (1.0 - (dn*y_esc).sum(dim=1))
@@ -320,15 +320,15 @@ def compute_loss(trig_logit, dir_pred, rate, v_hub_max, y_trig, y_esc,
         (v_hub_max - VTH)*4.0, y_trig,
         pos_weight=torch.tensor(2.5, device=device))
     base = 0.5*bce + 0.5*dir_loss + 2e-3*rate*T_STEPS + 0.6*gf_loss
-    # ── [v4b] 新增2项 ──
+    # ── [v4b] 2 new terms ──
     real_bce = nn.functional.binary_cross_entropy_with_logits(real_logit, y_real)
     ttc_mse = nn.functional.mse_loss(ttc_pred, y_ttc)
     return base + W_REAL_BCE*real_bce + W_TTC_MSE*ttc_mse
 
 
 def encode_batch(rng, samples, idx, pd_pref, wind_pref, augment, noise_std):
-    """v4b 版：额外返回 y_real（真实性标签）、y_ttc（归一化 TTC 目标）。
-    假威胁在调用侧注入后由 batch 级别处理。"""
+    """v4b version: additionally returns y_real (authenticity labels), y_ttc (normalized TTC target).
+    Fake threats are injected at the caller side and handled at batch level."""
     n_vis = pd_pref.shape[0]
     n_in = n_vis + wind_pref.shape[0]
     B = len(idx)
@@ -352,7 +352,7 @@ def encode_batch(rng, samples, idx, pd_pref, wind_pref, augment, noise_std):
 
 
 def val_loss_of(model, val_samples, pd_pref, wind_pref, device):
-    """v4b 验证损失：干净编码、固定种子；含真实性+TTC项。"""
+    """v4b validation loss: clean encoding, fixed seed; includes authenticity + TTC terms."""
     model.eval()
     rng = np.random.default_rng(VAL_LOSS_SEED)
     tot, cnt = 0.0, 0
@@ -364,7 +364,7 @@ def val_loss_of(model, val_samples, pd_pref, wind_pref, device):
             x = torch.tensor(sp, device=device)
             y_trig = torch.tensor(trigs, device=device)
             y_esc = torch.tensor(escs, device=device)
-            # 验证集全部为"真实"样本（无假威胁注入）
+            # Validation set is all "real" samples (no fake threat injection)
             y_real = torch.ones(len(idx), device=device)
             y_ttc = torch.tensor([min(s['ttc'], TTC_MAX_MS)/TTC_NORM for s in
                                   [val_samples[j] for j in idx]], device=device)
@@ -377,7 +377,7 @@ def val_loss_of(model, val_samples, pd_pref, wind_pref, device):
 
 
 def run_eval(model, samples, pd_pref, wind_pref, device, mode='fusion', noise_sigma_max=0.0):
-    """评估：与 v4 逐位一致，适配 v4b 的8输出 forward。"""
+    """Evaluation: bit-identical to v4, adapted for v4b's 8-output forward."""
     model.eval()
     rng = np.random.default_rng(777)
     n_vis = pd_pref.shape[0]
@@ -464,8 +464,8 @@ def export_model(model, results, ood_results, priming, hist, seed, args):
         'meta': {
             'dt_ms': DT_MS, 't_steps': T_STEPS, 'beta': BETA, 'threshold': VTH,
             'weight_init': 'W0 = sign(nt)*log1p(syn_count) / per-post |W| sum * 1.2',
-            'note': '权重为合成任务上微调结果；拓扑与极性来自 FlyWire，非生理实测权重',
-            'v4_stage': 'B（真实性鉴别+TTC回归）',
+            'note': 'Weights are fine-tuned on the synthetic task; topology and polarity from FlyWire, not physiological measurements',
+            'v4_stage': 'B (authenticity discrimination + TTC regression)',
             'train_seed': int(seed),
             'pref_seed': int(seed),
             'dir_flipped': False,
@@ -484,7 +484,7 @@ def export_model(model, results, ood_results, priming, hist, seed, args):
             'w': [[round(float(x), 6) for x in row] for row in model.head_dir.weight.detach().cpu().numpy()],
             'b': [round(float(x), 6) for x in model.head_dir.bias.detach().cpu().numpy()],
         },
-        # [v4b] 导出新头（推理时可选使用）
+        # [v4b] Export new heads (optionally used at inference)
         'head_real': {
             'w': [round(float(x), 6) for x in model.head_real.weight.detach().cpu().numpy().ravel()],
             'b': round(float(model.head_real.bias.item()), 6),
@@ -517,7 +517,7 @@ def export_model(model, results, ood_results, priming, hist, seed, args):
                     'val_set_seed': VAL_SET_SEED, 'ood_set_seed': OOD_SET_SEED,
                     'val_loss_seed': VAL_LOSS_SEED, 'batch': BATCH, 'lr': LR,
                     'p_fake': P_FAKE, 'w_real_bce': W_REAL_BCE, 'w_ttc_mse': W_TTC_MSE,
-                    'checkpoint_selection': 'val_loss 最小'},
+                    'checkpoint_selection': 'min val_loss'},
     })
     with open(os.path.join(BASE, f'metrics_seed{seed}.json'), 'w', encoding='utf-8') as f:
         json.dump(metrics, f, indent=2, ensure_ascii=False)
@@ -534,12 +534,12 @@ def export_model(model, results, ood_results, priming, hist, seed, args):
         plt.legend(); plt.tight_layout()
         plt.savefig(os.path.join(BASE, f'training_curve_seed{seed}.png'), dpi=120)
     except Exception as e:
-        print('(绘图跳过:', e, ')')
+        print('(Plot skipped:', e, ')')
 
 
 def main():
     global P_DROP
-    ap = argparse.ArgumentParser(description='v4 阶段 B：真实性鉴别 + TTC 回归')
+    ap = argparse.ArgumentParser(description='v4 Phase B: Authenticity discrimination + TTC regression')
     ap.add_argument('--seed', type=int, default=20240521)
     ap.add_argument('--n-train', type=int, default=N_TRAIN_DEFAULT)
     ap.add_argument('--epochs', type=int, default=EPOCHS)
@@ -561,9 +561,9 @@ def main():
     in_v, in_w = g['input_vision_indices'], g['input_wind_indices']
     hub, out = g['hub_gf_indices'], g['output_indices']
     n_vis, n_wind = len(in_v), len(in_w)
-    print(f'[v4b] 图：{n} 节点 / {len(src)} 边 | 视觉入 {n_vis} | 风觉入 {n_wind} | GF {len(hub)} | 输出 {len(out)}')
-    print(f'代理梯度: {USING}')
-    print(f'[v4b] 新增头: head_real(真实性) + head_ttc(TTC回归) | P_FAKE={P_FAKE} | '
+    print(f'[v4b] Graph: {n} nodes / {len(src)} edges | vision input {n_vis} | wind input {n_wind} | GF {len(hub)} | output {len(out)}')
+    print(f'Surrogate gradient: {USING}')
+    print(f'[v4b] New heads: head_real(authenticity) + head_ttc(TTC regression) | P_FAKE={P_FAKE} | '
           f'W_REAL_BCE={W_REAL_BCE} | W_TTC_MSE={W_TTC_MSE}')
 
     t_data = time.time()
@@ -574,8 +574,8 @@ def main():
     n_pos_tr = sum(1 for s in train_samples if s['trig'] > 0.5)
     n_pos_va = sum(1 for s in val_samples if s['trig'] > 0.5)
     n_pos_ood = sum(1 for s in ood_samples if s['trig'] > 0.5)
-    print(f'数据生成 {time.time()-t_data:.1f}s | 训练 {len(train_samples)}（威胁 {n_pos_tr}）| '
-          f'验证 {len(val_samples)}（威胁 {n_pos_va}）| OOD {len(ood_samples)}（威胁 {n_pos_ood}）')
+    print(f'Data generation {time.time()-t_data:.1f}s | train {len(train_samples)} (threat {n_pos_tr}) | '
+          f'val {len(val_samples)} (threat {n_pos_va}) | OOD {len(ood_samples)} (threat {n_pos_ood})')
 
     model = EscapeSNN(n, src, dst, w0, in_v, in_w, hub, out).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=args.wd)
@@ -594,9 +594,9 @@ def main():
         hist = ck['hist']
         best_state, best_val, best_ep, bad = ck['best_state'], ck['best_val'], ck['best_ep'], ck['bad']
         start_ep = ck['epoch']+1
-        print(f'== 断点续训：从第 {start_ep} 轮继续（历史 {len(hist)} 轮，最优 val={best_val:.4f}@ep{best_ep}）==')
+        print(f'== Resume from checkpoint: starting from epoch {start_ep} (history {len(hist)} epochs, best val={best_val:.4f}@ep{best_ep}) ==')
 
-    n_fake_per_batch = max(1, int(BATCH * P_FAKE))   # 每 batch 注入假威胁数
+    n_fake_per_batch = max(1, int(BATCH * P_FAKE))   # Number of fake threats to inject per batch
     t0 = time.time()
     for ep in range(start_ep, args.epochs+1):
         model.train()
@@ -608,7 +608,7 @@ def main():
             B = len(idx)
             sp, trigs, escs = encode_batch(rng, train_samples, idx, pd_pref, wind_pref,
                                            augment=True, noise_std=args.noise_std)
-            # [v4b] 注入假威胁：替换 batch 末尾 n_fake_per_batch 个样本
+            # [v4b] Inject fake threats: replace last n_fake_per_batch samples in batch
             n_fake = min(n_fake_per_batch, B)
             for fi in range(n_fake):
                 fst = sample_fake_threat(rng)
@@ -616,23 +616,23 @@ def main():
                 fsp = encode_spikes(rng, f_looming, f_wind, fst['az'], pd_pref, wind_pref,
                                     T_STEPS, noise_sigma=float(rng.uniform(0.0, args.noise_std)))
                 sp[:, B-1-fi, :] = fsp
-                trigs[B-1-fi] = 0.0          # 假威胁 trig=0
-                escs[B-1-fi] = 0.0           # 假威胁 esc 无意义（掩码用 trig）
+                trigs[B-1-fi] = 0.0          # Fake threat trig=0
+                escs[B-1-fi] = 0.0           # Fake threat esc is meaningless (masked by trig)
 
             x = torch.tensor(sp, device=device)
             y_trig = torch.tensor(trigs, device=device)
             y_esc = torch.tensor(escs, device=device)
-            # [v4b] 真实性标签：前 B-n_fake 个为真(1)，后 n_fake 个为假(0)
+            # [v4b] Authenticity labels: first B-n_fake are real (1), last n_fake are fake (0)
             y_real = torch.ones(B, device=device)
             y_real[B-n_fake:] = 0.0
-            # [v4b] TTC 目标：真样本=min(ttc,100)/50，假样本=2.0（=100ms/50，远超阈值）
+            # [v4b] TTC target: real samples = min(ttc,100)/50, fake samples = 2.0 (=100ms/50, well above threshold)
             y_ttc_list = []
             for jk in range(B):
                 if jk < B - n_fake:
                     st = train_samples[idx[jk]]
                     y_ttc_list.append(min(st['ttc'], TTC_MAX_MS) / TTC_NORM)
                 else:
-                    y_ttc_list.append(TTC_MAX_MS / TTC_NORM)   # 假威胁：高 TTC
+                    y_ttc_list.append(TTC_MAX_MS / TTC_NORM)   # Fake threat: high TTC
             y_ttc = torch.tensor(y_ttc_list, device=device, dtype=torch.float32)
 
             trig_logit, dir_pred, rate, v_hub_max, _, _, real_logit, ttc_pred = model(x)
@@ -670,19 +670,19 @@ def main():
                        'state': 'running'}, f, ensure_ascii=False, indent=2)
 
         if bad >= args.patience and ep >= MIN_EPOCHS:
-            print(f'== 早停：验证损失连续 {args.patience} 轮未改善（最优 ep{best_ep} val={best_val:.4f}）==', flush=True)
+            print(f'== Early stopping: validation loss did not improve for {args.patience} consecutive epochs (best ep{best_ep} val={best_val:.4f}) ==', flush=True)
             break
 
     if best_state is not None:
         model.load_state_dict(best_state)
-        print(f'\n已恢复最优权重（val_loss={best_val:.4f} @ ep{best_ep}）')
+        print(f'\nRestored best weights (val_loss={best_val:.4f} @ ep{best_ep})')
 
-    print('\n===== 对照评估（同一验证集 1200 条，干净编码，与 v3 同口径） =====')
+    print('\n===== Benchmark evaluation (same 1200-sample validation set, clean encoding, same protocol as v3) =====')
     results = {}
     for mode in ('fusion', 'vision_only', 'wind_only'):
         results[mode] = run_eval(model, val_samples, pd_pref, wind_pref, device, mode=mode)
 
-    print(f'===== OOD 评估（{N_OOD} 条偏移分布，传感器噪声×2；训练/验证从未使用） =====')
+    print(f'===== OOD evaluation ({N_OOD} shifted-distribution samples, sensor noise×2; never used in training/validation) =====')
     ood_results = {}
     for mode in ('fusion', 'vision_only', 'wind_only'):
         ood_results[mode] = run_eval(model, ood_samples, pd_pref, wind_pref, device, mode=mode,
@@ -691,15 +691,15 @@ def main():
     priming = priming_test(model, pd_pref, wind_pref, device)
 
     fmt = '{:<12}{:>16}{:>16}{:>14}{:>14}{:>14}'.format(
-        '组别', '触发准确率(GF)', '触发准确率(头)', '避障成功率', '方向误差(°)', 'GF潜伏期(ms)')
-    for tag, block in (('验证集', results), ('OOD集', ood_results)):
+        'Group', 'Trigger Acc(GF)', 'Trigger Acc(Head)', 'Escape Success', 'Direction Error(°)', 'GF Latency(ms)')
+    for tag, block in (('Val Set', results), ('OOD Set', ood_results)):
         print(f'\n[{tag}]')
         print(fmt)
         for mode, r in block.items():
             print('{:<12}{:>16.3f}{:>16.3f}{:>14.3f}{:>14.1f}{:>14.2f}'.format(
                 mode, r['trigger_acc_gf_spike'], r['trigger_acc_head'],
                 r['escape_success_rate'], r['dir_mae_deg'], r['gf_first_spike_ms']))
-    print('\n弱线索预激活(priming)测试 —— GF 放电比例与首次放电潜伏期：')
+    print('\nWeak cue priming test — GF firing rate and first spike latency:')
     for tag, r in priming.items():
         print('  {:<14} fire_rate={:.2f}  first_spike={:.2f} ms'.format(tag, r['fire_rate'], r['first_spike_ms']))
 
@@ -708,7 +708,7 @@ def main():
         json.dump({'seed': SEED, 'epoch': len(hist), 'epochs_max': args.epochs,
                    'best_val': best_val, 'best_epoch': best_ep, 'state': 'done'}, f,
                   ensure_ascii=False, indent=2)
-    print(f'\n导出完成: v4/snn_trained_seed{SEED}.json / v4/metrics_seed{SEED}.json / v4/training_curve_seed{SEED}.png')
+    print(f'\nExport complete: v4/snn_trained_seed{SEED}.json / v4/metrics_seed{SEED}.json / v4/training_curve_seed{SEED}.png')
 
 
 if __name__ == '__main__':

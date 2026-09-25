@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-report_tables.py —— v4 报告表格汇总器（只读输入，产物只落 v4\）
+report_tables.py —— v4 report table aggregator (read-only inputs, outputs go to v4\ only)
 ================================================================================
-输入（全部只读）：
-  v4\\metrics_seed{20240521,20240522,20240523}.json    （train_snn_v4.py 导出：验证 1200 + OOD 2000）
-  v4\\results_v4.json, v4\\results_v4_seed20240522.json, v4\\results_v4_seed20240523.json（evaluate_v4.js）
-  web\\results.json（v3 基线，只读）
+Inputs (all read-only):
+  v4\\metrics_seed{20240521,20240522,20240523}.json    (train_snn_v4.py export: val 1200 + OOD 2000)
+  v4\\results_v4.json, v4\\results_v4_seed20240522.json, v4\\results_v4_seed20240523.json (evaluate_v4.js)
+  web\\results.json (v3 baseline, read-only)
   v4\\speed_test.json
-输出：
-  v4\\report_tables.json（全部数字，含每种子明细，便于复跑核实） + 控制台 Markdown 表格
+Outputs:
+  v4\\report_tables.json (all numbers, including per-seed details for reproducibility) + console Markdown tables
 
-统计口径：跨 3 个训练种子的 mean ± std（样本标准差 ddof=1）；
-分场景表另给「主模型(20240521) 5 评估种子 mean±std」列，与 v3 web\\results.json 的 ±std 同口径可比。
+Statistics: mean ± std across 3 training seeds (sample std ddof=1);
+per-scenario table additionally provides "main model (20240521) 5 evaluation seeds mean±std" column, comparable to v3 web\\results.json ±std.
 """
 import os
 import sys
@@ -51,9 +51,9 @@ def load(p):
 
 
 def main():
-    out = {'seeds': SEEDS, 'std_definition': '样本标准差 ddof=1，对 3 个训练种子'}
+    out = {'seeds': SEEDS, 'std_definition': 'Sample std ddof=1, over 3 training seeds'}
 
-    # ---------- 0. 完整性检查 ----------
+    # ---------- 0. Integrity check ----------
     web_results = os.path.join(ROOT, 'web', 'results.json')
     sha = hashlib.sha256(open(web_results, 'rb').read()).hexdigest().upper()
     out['integrity'] = {
@@ -62,7 +62,7 @@ def main():
         'match': sha == EXPECTED_WEB_RESULTS_SHA256,
     }
 
-    # ---------- 1. 主表 / OOD 表（训练端 1200 验证 / 2000 OOD） ----------
+    # ---------- 1. Main table / OOD table (training-side 1200 val / 2000 OOD) ----------
     metrics = {s: load(os.path.join(BASE, f'metrics_seed{s}.json')) for s in SEEDS}
     rows = {}
     for split in ('results', 'ood_results'):
@@ -79,7 +79,7 @@ def main():
     out['val_1200'] = rows['results']
     out['ood_2000'] = rows['ood_results']
 
-    # ---------- 2. 过拟合体检（train/val 损失曲线） ----------
+    # ---------- 2. Overfitting health check (train/val loss curves) ----------
     fit = {}
     for s in SEEDS:
         hist = metrics[s]['train_loss']
@@ -101,7 +101,7 @@ def main():
         }
     out['overfit_check'] = fit
 
-    # ---------- 3. 分场景（evaluate.js 矩阵；主模型 5 评估种子 vs v3 同口径 + 3 训练种子跨模型） ----------
+    # ---------- 3. Per-scenario (evaluate.js matrix; main model 5 eval seeds vs v3 same protocol + 3 training seeds cross-model) ----------
     res_v4 = {s: load(os.path.join(BASE, 'results_v4.json' if s == 20240521 else f'results_v4_seed{s}.json'))
               for s in SEEDS}
     res_v3 = load(web_results)
@@ -132,7 +132,7 @@ def main():
         scen[cid] = entry
     out['scenarios'] = scen
 
-    # ---------- 4. D 组（物理积分口径，分列不混用） ----------
+    # ---------- 4. Group D (physical integration metrics, separate columns) ----------
     dgrp = {}
     for cid, label in (('D1', '果蝇身体'), ('D2', '无人机身体')):
         e = {'label': label, 'v3': {}, 'v4_main_seed20240521': {}, 'v4_3trainseeds': {}}
@@ -148,35 +148,35 @@ def main():
         dgrp[cid] = e
     out['group_D'] = dgrp
 
-    # ---------- 5. 确定性检查 ----------
+    # ---------- 5. Determinism checks ----------
     out['checks'] = {str(s): res_v4[s]['checks'] for s in SEEDS}
 
-    # ---------- 6. 测速 ----------
+    # ---------- 6. Speed test ----------
     try:
         out['speed_test'] = load(os.path.join(BASE, 'speed_test.json'))
     except Exception:
         out['speed_test'] = None
 
-    # ---------- 7. priming ----------
+    # ---------- 7. Priming ----------
     out['priming'] = {str(s): metrics[s]['priming'] for s in SEEDS}
 
     with open(os.path.join(BASE, 'report_tables.json'), 'w', encoding='utf-8') as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
 
-    # ---------- 控制台 Markdown ----------
+    # ---------- Console Markdown ----------
     def fmt_pair(d, digits):
         return f"{d['mean']:.{digits}f}±{d['std']:.{digits}f}" if d and d.get('mean') is not None else 'n/a'
 
-    print('### T1 验证集 1200 条（3 训练种子 mean±std, ddof=1）')
-    print('| 组别 | 触发准确率(GF) | 触发准确率(头) | 方向成功率 | 方向误差(°) | GF潜伏期(ms) |')
+    print('### T1 Validation Set 1200 samples (3 training seeds mean±std, ddof=1)')
+    print('| Group | Trigger Acc(GF) | Trigger Acc(Head) | Escape Success | Direction Error(°) | GF Latency(ms) |')
     print('|---|---|---|---|---|---|')
     for mode, zh in (('fusion', '融合'), ('vision_only', '纯视觉'), ('wind_only', '纯风觉')):
         r = rows['results'][mode]
         print(f"| {zh} | {fmt_pair(r['trigger_acc_gf_spike'],3)} | {fmt_pair(r['trigger_acc_head'],3)} | "
               f"{fmt_pair(r['escape_success_rate'],3)} | {fmt_pair(r['dir_mae_deg'],1)} | {fmt_pair(r['gf_first_spike_ms'],2)} |")
 
-    print('\n### T2 OOD 集 2000 条（3 训练种子 mean±std, ddof=1）')
-    print('| 组别 | 触发准确率(GF) | 方向成功率 | 方向误差(°) | GF潜伏期(ms) | 召回 | 误报FAR |')
+    print('\n### T2 OOD Set 2000 samples (3 training seeds mean±std, ddof=1)')
+    print('| Group | Trigger Acc(GF) | Escape Success | Direction Error(°) | GF Latency(ms) | Recall | False Alarm FAR |')
     print('|---|---|---|---|---|---|---|')
     for mode, zh in (('fusion', '融合'), ('vision_only', '纯视觉'), ('wind_only', '纯风觉')):
         r = rows['ood_2000'][mode]
@@ -184,8 +184,8 @@ def main():
               f"{fmt_pair(r['dir_mae_deg'],1)} | {fmt_pair(r['gf_first_spike_ms'],2)} | "
               f"{fmt_pair(r['threat_recall'],3)} | {fmt_pair(r['false_alarm_rate'],3)} |")
 
-    print('\n### T3 分场景（召回 / 误报 FAR；主模型 20240521 的 5 评估种子 mean±std，与 v3 同口径）')
-    print('| 场景 | v3 召回 | v4 召回 | v3 FAR | v4 FAR | v3 方向° | v4 方向° |')
+    print('\n### T3 Per-scenario (recall / false alarm FAR; main model 20240521 5 eval seeds mean±std, same protocol as v3)')
+    print('| Scenario | v3 Recall | v4 Recall | v3 FAR | v4 FAR | v3 Dir° | v4 Dir° |')
     print('|---|---|---|---|---|---|---|')
     for cid in ('B1', 'B2', 'B3', 'C1', 'C2', 'C3'):
         e = scen[cid]
@@ -193,24 +193,24 @@ def main():
               f"{fmt_pair(e['v3']['false_alarm_rate'],3)} | {fmt_pair(e['v4_main_seed20240521']['false_alarm_rate'],3)} | "
               f"{fmt_pair(e['v3']['dir_mae_deg'],1)} | {fmt_pair(e['v4_main_seed20240521']['dir_mae_deg'],1)} |")
 
-    print('\n### T3b 分场景跨 3 训练种子（各模型格内 5 评估种子均值，再对 3 训练种子取 mean±std ddof=1）')
-    print('| 场景 | 召回 | 误报 FAR | 触发准确率 | 方向成功率 | 方向误差(°) |')
+    print('\n### T3b Per-scenario across 3 training seeds (each model cell is 5 eval seed mean, then mean±std ddof=1 across 3 training seeds)')
+    print('| Scenario | Recall | False Alarm FAR | Trigger Acc | Escape Success | Direction Error(°) |')
     print('|---|---|---|---|---|---|')
     for cid in ('B1', 'B2', 'B3', 'C3'):
         e = scen[cid]['v4_3trainseeds']
         print(f"| {scen[cid]['label']} | {fmt_pair(e['threat_recall'],3)} | {fmt_pair(e['false_alarm_rate'],3)} | "
               f"{fmt_pair(e['trigger_acc'],3)} | {fmt_pair(e['escape_success_rate'],3)} | {fmt_pair(e['dir_mae_deg'],1)} |")
 
-    print('\n### T4 过拟合体检')
-    print('| 种子 | 训练轮数 | 最优轮 | best val | train@best | gap@best | 末轮 train | 末轮 val | 末轮 gap |')
+    print('\n### T4 Overfitting Health Check')
+    print('| Seed | Epochs Run | Best Epoch | Best Val | Train@Best | Gap@Best | Final Train | Final Val | Final Gap |')
     print('|---|---|---|---|---|---|---|---|---|')
     for s in SEEDS:
         f = fit[str(s)]
         print(f"| {s} | {f['epochs_run']} | {f['best_epoch']} | {f['best_val_loss']:.4f} | {f['train_loss_at_best']:.4f} | "
               f"{f['gap_at_best']:+.4f} | {f['final_train_loss']:.4f} | {f['final_val_loss']:.4f} | {f['final_gap']:+.4f} |")
 
-    print(f"\n[完整性] web\\results.json SHA256 = {sha}  与期望一致 = {out['integrity']['match']}")
-    print('[产物] v4/report_tables.json')
+    print(f"\n[Integrity] web\\results.json SHA256 = {sha}  match expected = {out['integrity']['match']}")
+    print('[Output] v4/report_tables.json')
 
 
 if __name__ == '__main__':

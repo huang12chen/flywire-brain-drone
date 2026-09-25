@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-train_snn_v4c.py —— v4 阶段 C：长决策窗（T_STEPS 64 ≈ 64ms 积分）
+train_snn_v4c.py —— v4 Phase C: Long Decision Window (T_STEPS 64 ≈ 64ms integration)
 ===================================================================
-基于 train_snn_v4b.py，唯一改动：T_STEPS 从 12 拉到 64。
-其余不变（5万样本、种子20240521、增强+假威胁+TTC回归）。
+Based on train_snn_v4b.py, only change: T_STEPS from 12 to 64.
+Everything else unchanged (50k samples, seed 20240521, augmentation + fake threats + TTC regression).
 
-用法：
+Usage:
   py -3.13 v4\\train_snn_v4c.py --seed 20240521
 """
 import os, sys, json, math, time, copy, random, argparse
@@ -39,9 +39,9 @@ except Exception:
         return _FastSigmoid.apply(x)
     USING = 'manual fast-sigmoid'
 
-# ── 超参（v4c 唯一改动：T_STEPS=64）────────────────────────────────
+# ── Hyperparameters (v4c only change: T_STEPS=64) ─────────────────────────────────
 DT_MS = 1.0
-T_STEPS = 64            # [v4c] 从 12 拉到 64（~64ms 积分窗口）
+T_STEPS = 64            # [v4c] Extended from 12 to 64 (~64ms integration window)
 BETA = 0.85
 VTH = 1.0
 BATCH = 64
@@ -64,12 +64,12 @@ VAL_LOSS_SEED = 424242
 VAL_SET_SEED = 20240523
 OOD_SET_SEED = 20240603
 
-# [v4b] 假威胁注入
+# [v4b] Fake threat injection
 P_FAKE = 0.10
 FAKE_D_MIN = 30.0
 FAKE_AZ_OFFSET = 1.05
 
-# [v4b] 损失权重
+# [v4b] Loss weights
 W_REAL_BCE = 0.3
 W_TTC_MSE = 0.2
 TTC_NORM = 50.0
@@ -434,8 +434,8 @@ def export_model(model, results, ood_results, priming, hist, seed, args):
         'meta': {
             'dt_ms': DT_MS, 't_steps': T_STEPS, 'beta': BETA, 'threshold': VTH,
             'weight_init': 'W0 = sign(nt)*log1p(syn_count) / per-post |W| sum * 1.2',
-            'note': '权重为合成任务上微调结果；拓扑与极性来自 FlyWire，非生理实测权重',
-            'v4_stage': 'C（长决策窗 T_STEPS=64）',
+            'note': 'Weights are fine-tuned on the synthetic task; topology and polarity from FlyWire, not physiological measurements',
+            'v4_stage': 'C (long decision window T_STEPS=64)',
             'train_seed': int(seed),
             'pref_seed': int(seed),
             'dir_flipped': False,
@@ -486,7 +486,7 @@ def export_model(model, results, ood_results, priming, hist, seed, args):
                     'val_set_seed': VAL_SET_SEED, 'ood_set_seed': OOD_SET_SEED,
                     'val_loss_seed': VAL_LOSS_SEED, 'batch': BATCH, 'lr': LR,
                     'p_fake': P_FAKE, 'w_real_bce': W_REAL_BCE, 'w_ttc_mse': W_TTC_MSE,
-                    'checkpoint_selection': 'val_loss 最小', 't_steps': T_STEPS},
+                    'checkpoint_selection': 'min val_loss', 't_steps': T_STEPS},
     })
     with open(os.path.join(BASE, f'metrics_seed{seed}.json'), 'w', encoding='utf-8') as f:
         json.dump(metrics, f, indent=2, ensure_ascii=False)
@@ -503,12 +503,12 @@ def export_model(model, results, ood_results, priming, hist, seed, args):
         plt.legend(); plt.tight_layout()
         plt.savefig(os.path.join(BASE, f'training_curve_seed{seed}.png'), dpi=120)
     except Exception as e:
-        print('(绘图跳过:', e, ')')
+        print('(Plot skipped:', e, ')')
 
 
 def main():
     global P_DROP
-    ap = argparse.ArgumentParser(description='v4 阶段 C：长决策窗 T_STEPS=64')
+    ap = argparse.ArgumentParser(description='v4 Phase C: long decision window T_STEPS=64')
     ap.add_argument('--seed', type=int, default=20240521)
     ap.add_argument('--n-train', type=int, default=N_TRAIN_DEFAULT)
     ap.add_argument('--epochs', type=int, default=EPOCHS)
@@ -530,9 +530,9 @@ def main():
     in_v, in_w = g['input_vision_indices'], g['input_wind_indices']
     hub, out = g['hub_gf_indices'], g['output_indices']
     n_vis, n_wind = len(in_v), len(in_w)
-    print(f'[v4c] 图：{n} 节点 / {len(src)} 边 | 视觉入 {n_vis} | 风觉入 {n_wind} | GF {len(hub)} | 输出 {len(out)}')
-    print(f'代理梯度: {USING}')
-    print(f'[v4c] T_STEPS={T_STEPS}（长决策窗 ~64ms 积分）| 其余与 v4b 一致')
+    print(f'[v4c] Graph: {n} nodes / {len(src)} edges | vision input {n_vis} | wind input {n_wind} | GF {len(hub)} | output {len(out)}')
+    print(f'Surrogate gradient: {USING}')
+    print(f'[v4c] T_STEPS={T_STEPS} (long decision window ~64ms integration) | rest same as v4b')
 
     t_data = time.time()
     pd_pref, wind_pref = make_pref(n_vis, n_wind, SEED)
@@ -542,8 +542,8 @@ def main():
     n_pos_tr = sum(1 for s in train_samples if s['trig'] > 0.5)
     n_pos_va = sum(1 for s in val_samples if s['trig'] > 0.5)
     n_pos_ood = sum(1 for s in ood_samples if s['trig'] > 0.5)
-    print(f'数据生成 {time.time()-t_data:.1f}s | 训练 {len(train_samples)}（威胁 {n_pos_tr}）| '
-          f'验证 {len(val_samples)}（威胁 {n_pos_va}）| OOD {len(ood_samples)}（威胁 {n_pos_ood}）')
+    print(f'Data generation {time.time()-t_data:.1f}s | train {len(train_samples)} (threat {n_pos_tr}) | '
+          f'val {len(val_samples)} (threat {n_pos_va}) | OOD {len(ood_samples)} (threat {n_pos_ood})')
 
     model = EscapeSNN(n, src, dst, w0, in_v, in_w, hub, out).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=args.wd)
@@ -562,7 +562,7 @@ def main():
         hist = ck['hist']
         best_state, best_val, best_ep, bad = ck['best_state'], ck['best_val'], ck['best_ep'], ck['bad']
         start_ep = ck['epoch']+1
-        print(f'== 断点续训：从第 {start_ep} 轮继续（历史 {len(hist)} 轮，最优 val={best_val:.4f}@ep{best_ep}）==')
+        print(f'== Resume from checkpoint: starting from epoch {start_ep} (history {len(hist)} epochs, best val={best_val:.4f}@ep{best_ep}) ==')
 
     n_fake_per_batch = max(1, int(BATCH * P_FAKE))
     t0 = time.time()
@@ -635,19 +635,19 @@ def main():
                        'state': 'running'}, f, ensure_ascii=False, indent=2)
 
         if bad >= args.patience and ep >= MIN_EPOCHS:
-            print(f'== 早停：验证损失连续 {args.patience} 轮未改善（最优 ep{best_ep} val={best_val:.4f}）==', flush=True)
+            print(f'== Early stopping: validation loss did not improve for {args.patience} consecutive epochs (best ep{best_ep} val={best_val:.4f}) ==', flush=True)
             break
 
     if best_state is not None:
         model.load_state_dict(best_state)
-        print(f'\n已恢复最优权重（val_loss={best_val:.4f} @ ep{best_ep}）')
+        print(f'\nRestored best weights (val_loss={best_val:.4f} @ ep{best_ep})')
 
-    print('\n===== 对照评估（同一验证集 1200 条，干净编码） =====')
+    print('\n===== Benchmark evaluation (same 1200-sample validation set, clean encoding) =====')
     results = {}
     for mode in ('fusion', 'vision_only', 'wind_only'):
         results[mode] = run_eval(model, val_samples, pd_pref, wind_pref, device, mode=mode)
 
-    print(f'===== OOD 评估（{N_OOD} 条偏移分布，传感器噪声×2） =====')
+    print(f'===== OOD evaluation ({N_OOD} shifted-distribution samples, sensor noise×2) =====')
     ood_results = {}
     for mode in ('fusion', 'vision_only', 'wind_only'):
         ood_results[mode] = run_eval(model, ood_samples, pd_pref, wind_pref, device, mode=mode,
@@ -656,15 +656,15 @@ def main():
     priming = priming_test(model, pd_pref, wind_pref, device)
 
     fmt = '{:<12}{:>16}{:>16}{:>14}{:>14}{:>14}'.format(
-        '组别', '触发准确率(GF)', '触发准确率(头)', '避障成功率', '方向误差(°)', 'GF潜伏期(ms)')
-    for tag, block in (('验证集', results), ('OOD集', ood_results)):
+        'Group', 'Trigger Acc(GF)', 'Trigger Acc(Head)', 'Escape Success', 'Direction Error(°)', 'GF Latency(ms)')
+    for tag, block in (('Val Set', results), ('OOD Set', ood_results)):
         print(f'\n[{tag}]')
         print(fmt)
         for mode, r in block.items():
             print('{:<12}{:>16.3f}{:>16.3f}{:>14.3f}{:>14.1f}{:>14.2f}'.format(
                 mode, r['trigger_acc_gf_spike'], r['trigger_acc_head'],
                 r['escape_success_rate'], r['dir_mae_deg'], r['gf_first_spike_ms']))
-    print('\n弱线索预激活(priming)测试 —— GF 放电比例与首次放电潜伏期：')
+    print('\nWeak cue priming test — GF firing rate and first spike latency:')
     for tag, r in priming.items():
         print('  {:<14} fire_rate={:.2f}  first_spike={:.2f} ms'.format(tag, r['fire_rate'], r['first_spike_ms']))
 
@@ -673,7 +673,7 @@ def main():
         json.dump({'seed': SEED, 'epoch': len(hist), 'epochs_max': args.epochs,
                    'best_val': best_val, 'best_epoch': best_ep, 'state': 'done'}, f,
                   ensure_ascii=False, indent=2)
-    print(f'\n导出完成: v4/snn_trained_seed{SEED}.json / v4/metrics_seed{SEED}.json / v4/training_curve_seed{SEED}.png')
+    print(f'\nExport complete: v4/snn_trained_seed{SEED}.json / v4/metrics_seed{SEED}.json / v4/training_curve_seed{SEED}.png')
 
 
 if __name__ == '__main__':
