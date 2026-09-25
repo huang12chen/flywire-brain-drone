@@ -1,86 +1,80 @@
-# FlyWire Connectome Brain → Drone Control（果蝇连接组大脑开无人机）
+# FlyWire Connectome Brain → Drone Control
 
-> 用 FlyWire 公开连接组抽出的果蝇逃逸回路（1871 神经元 / 45524 突触边）训练成 LIF 脉冲神经网络，装进 3D 世界里开无人机——威胁来袭时，果蝇脑在毫秒级决定"何时逃、往哪逃"，适配层把它翻译成 4 个电机的指令。
-> 纯前端演示：零构建、零 fetch、双击 `web\world.html` 即可运行（file:// 协议直接可用）。
+A fruit-fly escape circuit extracted from the public FlyWire connectome (1,871 neurons / 45,524 synaptic edges) trained as a LIF spiking neural network and used to pilot a drone in a 3D simulation. When a threat looms, the fly brain decides *when* and *which way* to escape in milliseconds; an adapter layer translates that direction vector into four motor commands.
 
-## 30 秒速览
+**Zero build, zero fetch — double-click `web/world.html` and it runs.**
 
-1. 双击 `web\world.html`
-2. 控制台里把载体选成"**无人机**"
-3. 按下"**自动威胁**"——看果蝇脑开飞机躲攻击
+## Quick Start
 
-## 架构
+1. Double-click `web/world.html`
+2. Select **Drone** as the agent
+3. Press **Auto Threat** — watch the fly brain dodge incoming attacks
+
+## Architecture
 
 ```
-FlyWire FAFB (1871 神经元)
-   │  LPLC2 视觉膨胀 + JO-B/JO-C 风觉
-   ▼
-LIF SNN（拓扑=连接组，边权可训练）
-   │  GF 巨纤维触发 + 逃逸方向向量
-   ▼
-DroneAdapter（PID 姿态环 + X 型混控）
-   │  状态机：巡航 / 逃逸 / 飞手 / 降落
-   ▼
-4 电机 ──► DronePhysics（质量/升力/阻力/姿态）──► 3D 世界
+FlyWire FAFB (1,871 neurons)
+  │  LPLC2 visual looming + JO-B/JO-C wind sensing
+  ▼
+LIF Spiking Neural Network (topology = connectome, weights trainable)
+  │  Giant Fiber trigger + escape direction vector
+  ▼
+DroneAdapter (PID attitude loop + X-quad motor mixing)
+  │  State machine: cruise / escape / pilot / land
+  ▼
+4 Motors → DronePhysics (mass / lift / drag / attitude) → 3D World
 ```
 
-## 指标（v3 口径，与 `web\results.json` 一致）
+## Metrics (v3 — matches `web/results.json`)
 
-| 指标 | 数值 |
+| Metric | Value |
 |---|---|
-| 触发准确率 | 0.799 |
-| 避障成功率 | 0.903 |
-| 方向误差 | 10.7° |
-| GF 潜伏期 | 7.65 ms |
-| 抖动（200 试，连跑 3 次取中位数判定，四项全达标） | 92.0% |
+| Trigger accuracy | 0.799 |
+| Escape success rate | 0.903 |
+| Direction error | 10.7° |
+| GF first-spike latency | 7.65 ms |
+| Jitter stability (200 trials × 3 runs, median) | 92.0% all-pass |
 
-D 组物理积分口径（单列，不与方向口径混用）：果蝇身体 **0.698** | 无人机身体 **0.694** | 静止基线 **0.685**。
+Physical integration group (swept-sphere): fly body **0.698** · drone body **0.694** · stationary baseline **0.685**.
 
-## 诚实边界（三条）
+## Honest Limits
 
-1. 巡航/避障的"转向偏好"是程序基线 + 神经逃逸混合，**不是全神经生成**（全神经巡航 = 完整果蝇路线阶段 2，见 [`v4\完整果蝇设计方案.md`](v4/完整果蝇设计方案.md)）。
-2. 飞行动力学参数为**演示级**（小四旋翼典型值），未做真机标定。
-3. 脑的输出是"**逃逸方向向量**"，适配层把它翻译成电机指令（生物对应：脑 → 胸神经节 → 飞行肌）。
+1. Cruise / obstacle-avoidance steering uses a program baseline mixed with neural escape — **not fully neural**. Full neural cruise = complete fly-brain pipeline (Phase 2, see [`v4/完整果蝇设计方案.md`](v4/完整果蝇设计方案.md)).
+2. Flight dynamics are **demo-grade** (small-quadrotor typical values), not calibrated on real hardware.
+3. The brain outputs an **escape direction vector**, not direct motor commands. The adapter maps it to motor thrust (biological analog: brain → thoracic ganglion → flight muscle).
 
-## 引用与致谢
+## Data & Citations
 
-- 数据：FlyWire / Princeton，见 Dorkenwald et al., *Nature* **634**:124–138 (2024)。
-- **勘误**：坊间所谓"谷歌开源了果蝇全脑"，开源的是 **Neuroglancer 查看器**，数据本身来自 **FlyWire**（Princeton 等）。
-- 工程参考：[snedea/flybrain](https://github.com/snedea/flybrain)（浏览器内 FlyWire 全脑 LIF 实时仿真，MIT）。
-- 代码许可：MIT（见 [`LICENSE`](LICENSE)）。
+- **Connectome data**: FlyWire / Princeton — Dorkenwald et al., *Nature* **634**:124–138 (2024).
+- **Clarification**: "Google open-sourced the fly brain" actually refers to the **Neuroglancer viewer software**; the connectome data comes from the **FlyWire Consortium** (Princeton, HHMI Janelia, MRC LMB).
+- **Engineering reference**: [snedea/flybrain](https://github.com/snedea/flybrain) — browser-based FlyWire whole-brain LIF simulation (139K neurons), MIT.
+- See [`NOTICE.md`](NOTICE.md) for full data attribution and third-party notices.
 
-## 复现
+## Reproduction
 
-```powershell
-$env:PYTHONPATH = "pylibs"
-py -3.13 -X utf8 extract_circuit.py        # ① 抽取子网络
-py -3.13 -X utf8 train_snn.py              # ② 训练 + 评估 + 导出
-py -3.13 -X utf8 web\make_web_data.py      # ③ 生成前端数据
-node web\evaluate.js                       # ④ 回归评估（结果写 web\results.json）
+```bash
+export PYTHONPATH=pylibs
+python extract_circuit.py        # 1. Extract subcircuit
+python train_snn.py              # 2. Train + evaluate + export
+python web/make_web_data.py      # 3. Generate frontend data
+node web/evaluate.js             # 4. Regression check (writes web/results.json)
 ```
 
-两个哈希锚点（改动任何 SNN 数值即回滚）：
+Hash anchors (any SNN numerical change triggers rollback):
 
-- `web\results.json` SHA256 = `0E1339A088EF3B5820DCA342B989249403BE41D5A3F7EDB9DDB1D1A91C217E9E`
-- `web\jitter_sim_log.md` SHA256 = `5C66B3D05A92F17961EC9EFC7F8406BFA6117CB04F5F47260F544AB52B8072AE`
+- `web/results.json` SHA256 = `0E1339A088EF3B5820DCA342B989249403BE41D5A3F7EDB9DDB1D1A91C217E9E`
+- `web/jitter_sim_log.md` SHA256 = `5C66B3D05A92F17961EC9EFC7F8406BFA6117CB04F5F47260F544AB52B8072AE`
 
-## 演示动图
+## Demo
 
 ![demo](docs/demo.gif)
 
-> 占位：`docs/demo.gif` 由阶段 6 自动截图脚本产出后替换。
+> Placeholder — replaced with auto-generated screenshots after Phase 6.
 
-## GitHub Pages 部署
+## GitHub Pages
 
-仓库 **Settings → Pages → Source 选 `main` 分支 → 目录 `/web`** → Save，稍候即可通过 `https://<用户名>.github.io/<仓库名>/` 访问在线演示（本地仍以 file:// 双击 `web\world.html` 为准）。
+Go to **Settings → Pages → Source: `main` branch, folder `/web`** → Save. Your demo will be live at `https://huang12chen.github.io/flywire-brain-drone/`.
 
----
+## License
 
-## English Summary
-
-**FlyWire Connectome Brain → Drone Control**: an escape circuit extracted from the public FlyWire fruit-fly connectome (1,871 neurons / 45,524 synaptic edges) is trained as a LIF spiking network and pilots a drone in a 3D world. On looming threat the fly brain decides *when* and *which way* to escape in milliseconds; an adapter layer (PID attitude loop + X-quad motor mixing) turns that direction vector into four motor commands.
-
-- **Quick start**: double-click `web\world.html`, pick "Drone", press "Auto Threat" — zero build, zero fetch, works straight from `file://`.
-- **Metrics (v3)**: trigger 0.799 / success 0.903 / direction 10.7° / latency 7.65 ms / jitter 200-trial median 92.0% all-pass. Physical-integration group: fly body 0.698 | drone body 0.694 | stationary baseline 0.685.
-- **Honest limits**: cruise/obstacle-avoidance steering is a program baseline mixed with neural escape (not fully neural); flight dynamics are demo-grade, not calibrated on real hardware; the brain outputs an escape direction vector, not motor commands.
-- **Data**: FlyWire (Dorkenwald et al., *Nature* 634:124–138, 2024). Clarification: "Google open-sored the fly brain" actually refers to the **Neuroglancer viewer**; the data comes from **FlyWire**. Engineering reference: [snedea/flybrain](https://github.com/snedea/flybrain). Code under MIT.
+MIT — see [`LICENSE`](LICENSE). Connectome-derived data distributed under FlyWire attribution terms (see [`NOTICE.md`](NOTICE.md)).
