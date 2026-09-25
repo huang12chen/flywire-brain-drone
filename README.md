@@ -39,7 +39,7 @@ Physical integration group (swept-sphere): fly body **0.698** · drone body **0.
 
 ## Honest Limits
 
-1. Cruise / obstacle-avoidance steering uses a program baseline mixed with neural escape — **not fully neural**. Full neural cruise = complete fly-brain pipeline (Phase 2, see [`v4/完整果蝇设计方案.md`](v4/完整果蝇设计方案.md)).
+1. Cruise / obstacle-avoidance steering uses a program baseline mixed with neural escape — **not fully neural**. Full neural cruise = complete fly-brain pipeline (Phase 2, see [`v4/full-fly-design.md`](v4/full-fly-design.md)).
 2. Flight dynamics are **demo-grade** (small-quadrotor typical values), not calibrated on real hardware.
 3. The brain outputs an **escape direction vector**, not direct motor commands. The adapter maps it to motor thrust (biological analog: brain → thoracic ganglion → flight muscle).
 

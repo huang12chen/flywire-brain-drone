@@ -2,7 +2,7 @@
 
 ## 已定决策
 1. **不用 Rapier 物理引擎**：包仅 ESM/需打包器，违 file:// 零构建约束（已核实官方 README）→ 手写动力学。
-2. **分层控制**（引自 v4\完整果蝇设计方案.md）：果蝇脑=决策（伪肌肉指令），PID 姿态环=稳定（生物对应 VNC/平衡棒反射），飞手遥控=最高优先级。
+2. **分层控制**（引自 v4\full-fly-design.md）：果蝇脑=决策（伪肌肉指令），PID 姿态环=稳定（生物对应 VNC/平衡棒反射），飞手遥控=最高优先级。
 3. **SNN 数值锚点**：results.json / jitter_sim_log.md 哈希锁死，任何阶段改动后必须复验。
 4. **GitHub 许可选 MIT**（代码）；数据引用 FlyWire（Dorkenwald et al., Nature 634:124–138, 2024）；注明"谷歌开源"=Neuroglancer 查看器、数据=FlyWire/Princeton。
 

@@ -75,7 +75,7 @@ world.html 逻辑（大脑持续在线，每决策周期跑 SNN）：
    - 引用：Dorkenwald et al. Nature 634:124–138 (2024)；勘误"谷歌开源=Neuroglancer 查看器，数据=FlyWire"；snedea/flybrain 链接
    - 复现：extract_circuit.py → train_snn.py → make_web_data.py → evaluate.js 命令 + 两个哈希锚点
    - 动图占位：`docs/demo.gif`（阶段 6 产出后替换）
-4. `docs/` 收纳：完整果蝇设计方案.md、本规格书、v4\REPORT_v4.md 摘录
+4. `docs/` 收纳：full-fly-design.md、本规格书、v4\REPORT_v4.md 摘录
 5. GitHub Pages 部署段落（Settings→Pages→main→/web）
 
 ## 阶段 6：演示动图（可选）
