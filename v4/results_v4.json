@@ -1,0 +1,1640 @@
+{
+  "meta": {
+    "generated_by": "v4/evaluate_v4.js（复制自 web/evaluate.js；口径逐字一致，仅改数据加载与输出路径）",
+    "model_data": "v4/snn_data_v4.js",
+    "model_train_seed": 20240521,
+    "model_pref_seed": 20240521,
+    "deterministic": true,
+    "prng": "mulberry32（种子化，禁用 Math.random）",
+    "rng_injection": "web/snn_runtime.js encode() 内 Math.random -> (this.rng || Math.random)()，默认行为不变，经 rt.rng 注入",
+    "seeds": [
+      20240521,
+      20240522,
+      20240523,
+      20240524,
+      20240525
+    ],
+    "samples_per_seed": 200,
+    "std_definition": "样本标准差 (ddof=1)，对每格 5 个种子的指标值",
+    "model": {
+      "num_nodes": 1871,
+      "n_edges": 45524,
+      "t_steps": 12,
+      "dt_ms": 1
+    },
+    "label_rule": "yTrig=1 ⇔ rdot<0 且 ttc=r/(-rdot)<50ms 且 r<25cm；esc = -rhat",
+    "metrics_def": {
+      "trigger_acc": "pred(triggered) == yTrig 的比例（triggered = GF 在 12ms 窗口内放电）",
+      "threat_recall": "（诊断）P(GF放电 | yTrig=1)",
+      "false_alarm_rate": "（诊断）P(GF放电 | yTrig=0)",
+      "escape_success_rate": "yTrig=1 样本中「triggered 且 方向误差<30°」的比例（A/B/C 组避障成功率）",
+      "dir_mae_deg": "acos(dot(escapeDir, esc)) 的角度均值（对 yTrig=1 样本）",
+      "gf_first_spike_ms": "firstSpikeMs 的均值（仅统计有效威胁 yTrig=1 中 triggered 的样本）",
+      "physical_success_rate": "（D 组避障成功率）换体二维平面积分判定为安全的比例（yTrig=1 样本）",
+      "stationary_safe_rate": "（D 组基线）载体不作机动时安全（自然脱靶）的比例",
+      "action_saved_rate": "（D 组）有机动时安全而静止基线碰撞的比例（机动真正救回）"
+    },
+    "envs": {
+      "meadow": {
+        "visGain": 1,
+        "ambientWind": [
+          0,
+          0,
+          0
+        ]
+      },
+      "storm": {
+        "visGain": 0.85,
+        "ambientWind": [
+          0.02,
+          0,
+          0.012
+        ]
+      },
+      "night": {
+        "visGain": 0.3,
+        "ambientWind": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "speed_ranges_ms": {
+      "full": [
+        0.3,
+        12
+      ],
+      "slow": [
+        0.3,
+        3
+      ],
+      "mid": [
+        3,
+        7
+      ],
+      "high": [
+        7,
+        12
+      ]
+    },
+    "bodies": {
+      "fly": {
+        "accel": 0.0022,
+        "vmax": 0.16
+      },
+      "drone": {
+        "accel": 0.0009,
+        "vmax": 0.1
+      },
+      "fly_radius_cm": 0.55
+    },
+    "scene_sampling": "r∈[3,35]cm, az∈[-π,π], el∈[-0.6,0.6], speed∈速度子区间(m/s), miss∈[0,8]cm, s∈[0.3,3]cm；与 train_snn.sample_threat 同量程",
+    "physics": "looming=max(0,-2*s*rdot/(r²+s²))*1000*visGain (rad/s)；u=s²|v|/r²，wind=u*v/|v|+ambientWind (cm/ms)；速度 m/s÷10→cm/ms",
+    "carrier_dynamics": "GF 潜伏期 L 后沿 escapeDir 加速（限 accel/vmax），威胁恒速，dt=1ms 二维平面积分至最近距离>半径和（安全）或距离<半径和（撞）"
+  },
+  "checks": {
+    "A1_equals_B1": true,
+    "C2_equals_D1_neural": true,
+    "D1_equals_D2_neural": true
+  },
+  "groups": {
+    "A": [
+      {
+        "id": "A1",
+        "label": "fusion",
+        "group": "A",
+        "config": {
+          "mode": "fusion",
+          "env": "meadow",
+          "speed_range": "full",
+          "speed_range_ms": [
+            0.3,
+            12
+          ],
+          "body": null
+        },
+        "n_seeds": 5,
+        "samples_per_seed": 200,
+        "n_samples": 1000,
+        "n_threat_total": 471,
+        "metrics": {
+          "trigger_acc": {
+            "mean": 0.783,
+            "std": 0.01036822067666387,
+            "n_defined": 5
+          },
+          "threat_recall": {
+            "mean": 0.8594738619598642,
+            "std": 0.033046578592278344,
+            "n_defined": 5
+          },
+          "false_alarm_rate": {
+            "mean": 0.2859291503908596,
+            "std": 0.034483956294565354,
+            "n_defined": 5
+          },
+          "escape_success_rate": {
+            "mean": 0.7855399897921095,
+            "std": 0.05416815570885995,
+            "n_defined": 5
+          },
+          "dir_mae_deg": {
+            "mean": 18.4100562977196,
+            "std": 0.2763486028530807,
+            "n_defined": 5
+          },
+          "gf_first_spike_ms": {
+            "mean": 7.117406599421889,
+            "std": 0.19821170092061666,
+            "n_defined": 5
+          }
+        },
+        "per_seed": [
+          {
+            "seed": 20240521,
+            "n_samples": 200,
+            "n_threat": 94,
+            "n_triggered": 113,
+            "trigger_acc": 0.775,
+            "threat_recall": 0.8617021276595744,
+            "false_alarm_rate": 0.3018867924528302,
+            "n_tp": 81,
+            "n_fp": 32,
+            "n_fn": 13,
+            "n_tn": 74,
+            "escape_success_rate": 0.7978723404255319,
+            "dir_mae_deg": 18.2151423952297,
+            "gf_first_spike_ms": 7.148148148148148
+          },
+          {
+            "seed": 20240522,
+            "n_samples": 200,
+            "n_threat": 94,
+            "n_triggered": 117,
+            "trigger_acc": 0.795,
+            "threat_recall": 0.9042553191489362,
+            "false_alarm_rate": 0.3018867924528302,
+            "n_tp": 85,
+            "n_fp": 32,
+            "n_fn": 9,
+            "n_tn": 74,
+            "escape_success_rate": 0.8404255319148937,
+            "dir_mae_deg": 18.350889135284472,
+            "gf_first_spike_ms": 7.2823529411764705
+          },
+          {
+            "seed": 20240523,
+            "n_samples": 200,
+            "n_threat": 98,
+            "n_triggered": 113,
+            "trigger_acc": 0.785,
+            "threat_recall": 0.8571428571428571,
+            "false_alarm_rate": 0.28431372549019607,
+            "n_tp": 84,
+            "n_fp": 29,
+            "n_fn": 14,
+            "n_tn": 73,
+            "escape_success_rate": 0.7244897959183674,
+            "dir_mae_deg": 18.78679860299615,
+            "gf_first_spike_ms": 7
+          },
+          {
+            "seed": 20240524,
+            "n_samples": 200,
+            "n_threat": 95,
+            "n_triggered": 115,
+            "trigger_acc": 0.77,
+            "threat_recall": 0.8631578947368421,
+            "false_alarm_rate": 0.3142857142857143,
+            "n_tp": 82,
+            "n_fp": 33,
+            "n_fn": 13,
+            "n_tn": 72,
+            "escape_success_rate": 0.8315789473684211,
+            "dir_mae_deg": 18.588020855277897,
+            "gf_first_spike_ms": 6.841463414634147
+          },
+          {
+            "seed": 20240525,
+            "n_samples": 200,
+            "n_threat": 90,
+            "n_triggered": 98,
+            "trigger_acc": 0.79,
+            "threat_recall": 0.8111111111111111,
+            "false_alarm_rate": 0.22727272727272727,
+            "n_tp": 73,
+            "n_fp": 25,
+            "n_fn": 17,
+            "n_tn": 85,
+            "escape_success_rate": 0.7333333333333333,
+            "dir_mae_deg": 18.10943049980977,
+            "gf_first_spike_ms": 7.315068493150685
+          }
+        ]
+      },
+      {
+        "id": "A2",
+        "label": "vision_only",
+        "group": "A",
+        "config": {
+          "mode": "vision_only",
+          "env": "meadow",
+          "speed_range": "full",
+          "speed_range_ms": [
+            0.3,
+            12
+          ],
+          "body": null
+        },
+        "n_seeds": 5,
+        "samples_per_seed": 200,
+        "n_samples": 1000,
+        "n_threat_total": 471,
+        "metrics": {
+          "trigger_acc": {
+            "mean": 0.782,
+            "std": 0.008366600265340762,
+            "n_defined": 5
+          },
+          "threat_recall": {
+            "mean": 0.8128452336515046,
+            "std": 0.04591517029477007,
+            "n_defined": 5
+          },
+          "false_alarm_rate": {
+            "mean": 0.24614449553406267,
+            "std": 0.03457650612484899,
+            "n_defined": 5
+          },
+          "escape_success_rate": {
+            "mean": 0.6895421938838993,
+            "std": 0.05693163520084503,
+            "n_defined": 5
+          },
+          "dir_mae_deg": {
+            "mean": 19.80408242342451,
+            "std": 0.41393646444229,
+            "n_defined": 5
+          },
+          "gf_first_spike_ms": {
+            "mean": 7.7410088152427505,
+            "std": 0.22852397887349932,
+            "n_defined": 5
+          }
+        },
+        "per_seed": [
+          {
+            "seed": 20240521,
+            "n_samples": 200,
+            "n_threat": 94,
+            "n_triggered": 100,
+            "trigger_acc": 0.79,
+            "threat_recall": 0.8085106382978723,
+            "false_alarm_rate": 0.22641509433962265,
+            "n_tp": 76,
+            "n_fp": 24,
+            "n_fn": 18,
+            "n_tn": 82,
+            "escape_success_rate": 0.7021276595744681,
+            "dir_mae_deg": 19.65339015708979,
+            "gf_first_spike_ms": 7.631578947368421
+          },
+          {
+            "seed": 20240522,
+            "n_samples": 200,
+            "n_threat": 94,
+            "n_triggered": 112,
+            "trigger_acc": 0.79,
+            "threat_recall": 0.8723404255319149,
+            "false_alarm_rate": 0.2830188679245283,
+            "n_tp": 82,
+            "n_fp": 30,
+            "n_fn": 12,
+            "n_tn": 76,
+            "escape_success_rate": 0.7340425531914894,
+            "dir_mae_deg": 19.379161824252446,
+            "gf_first_spike_ms": 7.878048780487805
+          },
+          {
+            "seed": 20240523,
+            "n_samples": 200,
+            "n_threat": 98,
+            "n_triggered": 102,
+            "trigger_acc": 0.77,
+            "threat_recall": 0.7857142857142857,
+            "false_alarm_rate": 0.24509803921568626,
+            "n_tp": 77,
+            "n_fp": 25,
+            "n_fn": 21,
+            "n_tn": 77,
+            "escape_success_rate": 0.6530612244897959,
+            "dir_mae_deg": 20.23901569149035,
+            "gf_first_spike_ms": 7.701298701298701
+          },
+          {
+            "seed": 20240524,
+            "n_samples": 200,
+            "n_threat": 95,
+            "n_triggered": 109,
+            "trigger_acc": 0.78,
+            "threat_recall": 0.8421052631578947,
+            "false_alarm_rate": 0.2761904761904762,
+            "n_tp": 80,
+            "n_fp": 29,
+            "n_fn": 15,
+            "n_tn": 76,
+            "escape_success_rate": 0.7473684210526316,
+            "dir_mae_deg": 20.2506173772225,
+            "gf_first_spike_ms": 7.45
+          },
+          {
+            "seed": 20240525,
+            "n_samples": 200,
+            "n_threat": 90,
+            "n_triggered": 90,
+            "trigger_acc": 0.78,
+            "threat_recall": 0.7555555555555555,
+            "false_alarm_rate": 0.2,
+            "n_tp": 68,
+            "n_fp": 22,
+            "n_fn": 22,
+            "n_tn": 88,
+            "escape_success_rate": 0.6111111111111112,
+            "dir_mae_deg": 19.49822706706748,
+            "gf_first_spike_ms": 8.044117647058824
+          }
+        ]
+      },
+      {
+        "id": "A3",
+        "label": "wind_only",
+        "group": "A",
+        "config": {
+          "mode": "wind_only",
+          "env": "meadow",
+          "speed_range": "full",
+          "speed_range_ms": [
+            0.3,
+            12
+          ],
+          "body": null
+        },
+        "n_seeds": 5,
+        "samples_per_seed": 200,
+        "n_samples": 1000,
+        "n_threat_total": 471,
+        "metrics": {
+          "trigger_acc": {
+            "mean": 0.543,
+            "std": 0.013509256086106263,
+            "n_defined": 5
+          },
+          "threat_recall": {
+            "mean": 0.05312582367773537,
+            "std": 0.013220202018319787,
+            "n_defined": 5
+          },
+          "false_alarm_rate": {
+            "mean": 0.02069475474580913,
+            "std": 0.01541750727757335,
+            "n_defined": 5
+          },
+          "escape_success_rate": {
+            "mean": 0.02953940068001818,
+            "std": 0.010899070463057912,
+            "n_defined": 5
+          },
+          "dir_mae_deg": {
+            "mean": 45.45705902237155,
+            "std": 3.4574269054314164,
+            "n_defined": 5
+          },
+          "gf_first_spike_ms": {
+            "mean": 8.253333333333334,
+            "std": 0.4729341039369723,
+            "n_defined": 5
+          }
+        },
+        "per_seed": [
+          {
+            "seed": 20240521,
+            "n_samples": 200,
+            "n_threat": 94,
+            "n_triggered": 8,
+            "trigger_acc": 0.54,
+            "threat_recall": 0.05319148936170213,
+            "false_alarm_rate": 0.02830188679245283,
+            "n_tp": 5,
+            "n_fp": 3,
+            "n_fn": 89,
+            "n_tn": 103,
+            "escape_success_rate": 0.02127659574468085,
+            "dir_mae_deg": 41.701288943845256,
+            "gf_first_spike_ms": 8
+          },
+          {
+            "seed": 20240522,
+            "n_samples": 200,
+            "n_threat": 94,
+            "n_triggered": 3,
+            "trigger_acc": 0.545,
+            "threat_recall": 0.031914893617021274,
+            "false_alarm_rate": 0,
+            "n_tp": 3,
+            "n_fp": 0,
+            "n_fn": 91,
+            "n_tn": 106,
+            "escape_success_rate": 0.02127659574468085,
+            "dir_mae_deg": 48.432649100340235,
+            "gf_first_spike_ms": 8.333333333333334
+          },
+          {
+            "seed": 20240523,
+            "n_samples": 200,
+            "n_threat": 98,
+            "n_triggered": 7,
+            "trigger_acc": 0.535,
+            "threat_recall": 0.061224489795918366,
+            "false_alarm_rate": 0.00980392156862745,
+            "n_tp": 6,
+            "n_fp": 1,
+            "n_fn": 92,
+            "n_tn": 101,
+            "escape_success_rate": 0.04081632653061224,
+            "dir_mae_deg": 49.49834400358266,
+            "gf_first_spike_ms": 8.5
+          },
+          {
+            "seed": 20240524,
+            "n_samples": 200,
+            "n_threat": 95,
+            "n_triggered": 9,
+            "trigger_acc": 0.53,
+            "threat_recall": 0.05263157894736842,
+            "false_alarm_rate": 0.0380952380952381,
+            "n_tp": 5,
+            "n_fp": 4,
+            "n_fn": 90,
+            "n_tn": 101,
+            "escape_success_rate": 0.042105263157894736,
+            "dir_mae_deg": 45.092577399721854,
+            "gf_first_spike_ms": 7.6
+          },
+          {
+            "seed": 20240525,
+            "n_samples": 200,
+            "n_threat": 90,
+            "n_triggered": 9,
+            "trigger_acc": 0.565,
+            "threat_recall": 0.06666666666666667,
+            "false_alarm_rate": 0.02727272727272727,
+            "n_tp": 6,
+            "n_fp": 3,
+            "n_fn": 84,
+            "n_tn": 107,
+            "escape_success_rate": 0.022222222222222223,
+            "dir_mae_deg": 42.56043566436773,
+            "gf_first_spike_ms": 8.833333333333334
+          }
+        ]
+      }
+    ],
+    "B": [
+      {
+        "id": "B1",
+        "label": "meadow",
+        "group": "B",
+        "config": {
+          "mode": "fusion",
+          "env": "meadow",
+          "speed_range": "full",
+          "speed_range_ms": [
+            0.3,
+            12
+          ],
+          "body": null
+        },
+        "n_seeds": 5,
+        "samples_per_seed": 200,
+        "n_samples": 1000,
+        "n_threat_total": 471,
+        "metrics": {
+          "trigger_acc": {
+            "mean": 0.783,
+            "std": 0.01036822067666387,
+            "n_defined": 5
+          },
+          "threat_recall": {
+            "mean": 0.8594738619598642,
+            "std": 0.033046578592278344,
+            "n_defined": 5
+          },
+          "false_alarm_rate": {
+            "mean": 0.2859291503908596,
+            "std": 0.034483956294565354,
+            "n_defined": 5
+          },
+          "escape_success_rate": {
+            "mean": 0.7855399897921095,
+            "std": 0.05416815570885995,
+            "n_defined": 5
+          },
+          "dir_mae_deg": {
+            "mean": 18.4100562977196,
+            "std": 0.2763486028530807,
+            "n_defined": 5
+          },
+          "gf_first_spike_ms": {
+            "mean": 7.117406599421889,
+            "std": 0.19821170092061666,
+            "n_defined": 5
+          }
+        },
+        "per_seed": [
+          {
+            "seed": 20240521,
+            "n_samples": 200,
+            "n_threat": 94,
+            "n_triggered": 113,
+            "trigger_acc": 0.775,
+            "threat_recall": 0.8617021276595744,
+            "false_alarm_rate": 0.3018867924528302,
+            "n_tp": 81,
+            "n_fp": 32,
+            "n_fn": 13,
+            "n_tn": 74,
+            "escape_success_rate": 0.7978723404255319,
+            "dir_mae_deg": 18.2151423952297,
+            "gf_first_spike_ms": 7.148148148148148
+          },
+          {
+            "seed": 20240522,
+            "n_samples": 200,
+            "n_threat": 94,
+            "n_triggered": 117,
+            "trigger_acc": 0.795,
+            "threat_recall": 0.9042553191489362,
+            "false_alarm_rate": 0.3018867924528302,
+            "n_tp": 85,
+            "n_fp": 32,
+            "n_fn": 9,
+            "n_tn": 74,
+            "escape_success_rate": 0.8404255319148937,
+            "dir_mae_deg": 18.350889135284472,
+            "gf_first_spike_ms": 7.2823529411764705
+          },
+          {
+            "seed": 20240523,
+            "n_samples": 200,
+            "n_threat": 98,
+            "n_triggered": 113,
+            "trigger_acc": 0.785,
+            "threat_recall": 0.8571428571428571,
+            "false_alarm_rate": 0.28431372549019607,
+            "n_tp": 84,
+            "n_fp": 29,
+            "n_fn": 14,
+            "n_tn": 73,
+            "escape_success_rate": 0.7244897959183674,
+            "dir_mae_deg": 18.78679860299615,
+            "gf_first_spike_ms": 7
+          },
+          {
+            "seed": 20240524,
+            "n_samples": 200,
+            "n_threat": 95,
+            "n_triggered": 115,
+            "trigger_acc": 0.77,
+            "threat_recall": 0.8631578947368421,
+            "false_alarm_rate": 0.3142857142857143,
+            "n_tp": 82,
+            "n_fp": 33,
+            "n_fn": 13,
+            "n_tn": 72,
+            "escape_success_rate": 0.8315789473684211,
+            "dir_mae_deg": 18.588020855277897,
+            "gf_first_spike_ms": 6.841463414634147
+          },
+          {
+            "seed": 20240525,
+            "n_samples": 200,
+            "n_threat": 90,
+            "n_triggered": 98,
+            "trigger_acc": 0.79,
+            "threat_recall": 0.8111111111111111,
+            "false_alarm_rate": 0.22727272727272727,
+            "n_tp": 73,
+            "n_fp": 25,
+            "n_fn": 17,
+            "n_tn": 85,
+            "escape_success_rate": 0.7333333333333333,
+            "dir_mae_deg": 18.10943049980977,
+            "gf_first_spike_ms": 7.315068493150685
+          }
+        ]
+      },
+      {
+        "id": "B2",
+        "label": "storm",
+        "group": "B",
+        "config": {
+          "mode": "fusion",
+          "env": "storm",
+          "speed_range": "full",
+          "speed_range_ms": [
+            0.3,
+            12
+          ],
+          "body": null
+        },
+        "n_seeds": 5,
+        "samples_per_seed": 200,
+        "n_samples": 1000,
+        "n_threat_total": 471,
+        "metrics": {
+          "trigger_acc": {
+            "mean": 0.705,
+            "std": 0.014577379737113264,
+            "n_defined": 5
+          },
+          "threat_recall": {
+            "mean": 0.9279136036646836,
+            "std": 0.014704385228044767,
+            "n_defined": 5
+          },
+          "false_alarm_rate": {
+            "mean": 0.49369944890477635,
+            "std": 0.0387138364654801,
+            "n_defined": 5
+          },
+          "escape_success_rate": {
+            "mean": 0.7854987011601953,
+            "std": 0.027101095913547434,
+            "n_defined": 5
+          },
+          "dir_mae_deg": {
+            "mean": 20.5678549726154,
+            "std": 0.8093437104010278,
+            "n_defined": 5
+          },
+          "gf_first_spike_ms": {
+            "mean": 7.023104584163855,
+            "std": 0.17983507886729305,
+            "n_defined": 5
+          }
+        },
+        "per_seed": [
+          {
+            "seed": 20240521,
+            "n_samples": 200,
+            "n_threat": 94,
+            "n_triggered": 144,
+            "trigger_acc": 0.7,
+            "threat_recall": 0.9468085106382979,
+            "false_alarm_rate": 0.5188679245283019,
+            "n_tp": 89,
+            "n_fp": 55,
+            "n_fn": 5,
+            "n_tn": 51,
+            "escape_success_rate": 0.8085106382978723,
+            "dir_mae_deg": 19.376220126125837,
+            "gf_first_spike_ms": 7.202247191011236
+          },
+          {
+            "seed": 20240522,
+            "n_samples": 200,
+            "n_threat": 94,
+            "n_triggered": 142,
+            "trigger_acc": 0.69,
+            "threat_recall": 0.925531914893617,
+            "false_alarm_rate": 0.5188679245283019,
+            "n_tp": 87,
+            "n_fp": 55,
+            "n_fn": 7,
+            "n_tn": 51,
+            "escape_success_rate": 0.7659574468085106,
+            "dir_mae_deg": 20.266241847875445,
+            "gf_first_spike_ms": 6.954022988505747
+          },
+          {
+            "seed": 20240523,
+            "n_samples": 200,
+            "n_threat": 98,
+            "n_triggered": 137,
+            "trigger_acc": 0.715,
+            "threat_recall": 0.9081632653061225,
+            "false_alarm_rate": 0.47058823529411764,
+            "n_tp": 89,
+            "n_fp": 48,
+            "n_fn": 9,
+            "n_tn": 54,
+            "escape_success_rate": 0.7653061224489796,
+            "dir_mae_deg": 21.447525007586258,
+            "gf_first_spike_ms": 6.876404494382022
+          },
+          {
+            "seed": 20240524,
+            "n_samples": 200,
+            "n_threat": 95,
+            "n_triggered": 144,
+            "trigger_acc": 0.695,
+            "threat_recall": 0.9368421052631579,
+            "false_alarm_rate": 0.5238095238095238,
+            "n_tp": 89,
+            "n_fp": 55,
+            "n_fn": 6,
+            "n_tn": 50,
+            "escape_success_rate": 0.8210526315789474,
+            "dir_mae_deg": 20.60341841694409,
+            "gf_first_spike_ms": 6.853932584269663
+          },
+          {
+            "seed": 20240525,
+            "n_samples": 200,
+            "n_threat": 90,
+            "n_triggered": 131,
+            "trigger_acc": 0.725,
+            "threat_recall": 0.9222222222222223,
+            "false_alarm_rate": 0.43636363636363634,
+            "n_tp": 83,
+            "n_fp": 48,
+            "n_fn": 7,
+            "n_tn": 62,
+            "escape_success_rate": 0.7666666666666667,
+            "dir_mae_deg": 21.145869464545367,
+            "gf_first_spike_ms": 7.228915662650603
+          }
+        ]
+      },
+      {
+        "id": "B3",
+        "label": "night",
+        "group": "B",
+        "config": {
+          "mode": "fusion",
+          "env": "night",
+          "speed_range": "full",
+          "speed_range_ms": [
+            0.3,
+            12
+          ],
+          "body": null
+        },
+        "n_seeds": 5,
+        "samples_per_seed": 200,
+        "n_samples": 1000,
+        "n_threat_total": 471,
+        "metrics": {
+          "trigger_acc": {
+            "mean": 0.7710000000000001,
+            "std": 0.019493588689617945,
+            "n_defined": 5
+          },
+          "threat_recall": {
+            "mean": 0.5899306015799377,
+            "std": 0.040198512794685906,
+            "n_defined": 5
+          },
+          "false_alarm_rate": {
+            "mean": 0.06788935814463007,
+            "std": 0.02571620741536082,
+            "n_defined": 5
+          },
+          "escape_success_rate": {
+            "mean": 0.5348137313902792,
+            "std": 0.0485980643157506,
+            "n_defined": 5
+          },
+          "dir_mae_deg": {
+            "mean": 20.53179487902468,
+            "std": 0.7269666111548705,
+            "n_defined": 5
+          },
+          "gf_first_spike_ms": {
+            "mean": 7.622789481607424,
+            "std": 0.1801406353821112,
+            "n_defined": 5
+          }
+        },
+        "per_seed": [
+          {
+            "seed": 20240521,
+            "n_samples": 200,
+            "n_threat": 94,
+            "n_triggered": 69,
+            "trigger_acc": 0.765,
+            "threat_recall": 0.6170212765957447,
+            "false_alarm_rate": 0.10377358490566038,
+            "n_tp": 58,
+            "n_fp": 11,
+            "n_fn": 36,
+            "n_tn": 95,
+            "escape_success_rate": 0.5638297872340425,
+            "dir_mae_deg": 19.323600013039542,
+            "gf_first_spike_ms": 7.931034482758621
+          },
+          {
+            "seed": 20240522,
+            "n_samples": 200,
+            "n_threat": 94,
+            "n_triggered": 62,
+            "trigger_acc": 0.8,
+            "threat_recall": 0.6170212765957447,
+            "false_alarm_rate": 0.03773584905660377,
+            "n_tp": 58,
+            "n_fp": 4,
+            "n_fn": 36,
+            "n_tn": 102,
+            "escape_success_rate": 0.5531914893617021,
+            "dir_mae_deg": 20.881324474219955,
+            "gf_first_spike_ms": 7.517241379310345
+          },
+          {
+            "seed": 20240523,
+            "n_samples": 200,
+            "n_threat": 98,
+            "n_triggered": 60,
+            "trigger_acc": 0.76,
+            "threat_recall": 0.5612244897959183,
+            "false_alarm_rate": 0.049019607843137254,
+            "n_tp": 55,
+            "n_fp": 5,
+            "n_fn": 43,
+            "n_tn": 97,
+            "escape_success_rate": 0.4897959183673469,
+            "dir_mae_deg": 21.059417150539446,
+            "gf_first_spike_ms": 7.636363636363637
+          },
+          {
+            "seed": 20240524,
+            "n_samples": 200,
+            "n_threat": 95,
+            "n_triggered": 67,
+            "trigger_acc": 0.78,
+            "threat_recall": 0.6210526315789474,
+            "false_alarm_rate": 0.0761904761904762,
+            "n_tp": 59,
+            "n_fp": 8,
+            "n_fn": 36,
+            "n_tn": 97,
+            "escape_success_rate": 0.5894736842105263,
+            "dir_mae_deg": 21.012622616899627,
+            "gf_first_spike_ms": 7.508474576271187
+          },
+          {
+            "seed": 20240525,
+            "n_samples": 200,
+            "n_threat": 90,
+            "n_triggered": 56,
+            "trigger_acc": 0.75,
+            "threat_recall": 0.5333333333333333,
+            "false_alarm_rate": 0.07272727272727272,
+            "n_tp": 48,
+            "n_fp": 8,
+            "n_fn": 42,
+            "n_tn": 102,
+            "escape_success_rate": 0.4777777777777778,
+            "dir_mae_deg": 20.38201014042482,
+            "gf_first_spike_ms": 7.520833333333333
+          }
+        ]
+      }
+    ],
+    "C": [
+      {
+        "id": "C1",
+        "label": "slow",
+        "group": "C",
+        "config": {
+          "mode": "fusion",
+          "env": "meadow",
+          "speed_range": "slow",
+          "speed_range_ms": [
+            0.3,
+            3
+          ],
+          "body": null
+        },
+        "n_seeds": 5,
+        "samples_per_seed": 200,
+        "n_samples": 1000,
+        "n_threat_total": 94,
+        "metrics": {
+          "trigger_acc": {
+            "mean": 0.819,
+            "std": 0.00961769203083564,
+            "n_defined": 5
+          },
+          "threat_recall": {
+            "mean": 0.9048649538866931,
+            "std": 0.05329279434846939,
+            "n_defined": 5
+          },
+          "false_alarm_rate": {
+            "mean": 0.1898347088492651,
+            "std": 0.010385282427830534,
+            "n_defined": 5
+          },
+          "escape_success_rate": {
+            "mean": 0.8255720245937637,
+            "std": 0.11500116217071436,
+            "n_defined": 5
+          },
+          "dir_mae_deg": {
+            "mean": 18.026452705217974,
+            "std": 2.5751992072886996,
+            "n_defined": 5
+          },
+          "gf_first_spike_ms": {
+            "mean": 7.22447026657553,
+            "std": 0.23396581262530497,
+            "n_defined": 5
+          }
+        },
+        "per_seed": [
+          {
+            "seed": 20240521,
+            "n_samples": 200,
+            "n_threat": 15,
+            "n_triggered": 52,
+            "trigger_acc": 0.805,
+            "threat_recall": 0.9333333333333333,
+            "false_alarm_rate": 0.20540540540540542,
+            "n_tp": 14,
+            "n_fp": 38,
+            "n_fn": 1,
+            "n_tn": 147,
+            "escape_success_rate": 0.9333333333333333,
+            "dir_mae_deg": 14.833501671810785,
+            "gf_first_spike_ms": 7.428571428571429
+          },
+          {
+            "seed": 20240522,
+            "n_samples": 200,
+            "n_threat": 22,
+            "n_triggered": 53,
+            "trigger_acc": 0.815,
+            "threat_recall": 0.8636363636363636,
+            "false_alarm_rate": 0.19101123595505617,
+            "n_tp": 19,
+            "n_fp": 34,
+            "n_fn": 3,
+            "n_tn": 144,
+            "escape_success_rate": 0.7727272727272727,
+            "dir_mae_deg": 20.35050972217056,
+            "gf_first_spike_ms": 7.421052631578948
+          },
+          {
+            "seed": 20240523,
+            "n_samples": 200,
+            "n_threat": 18,
+            "n_triggered": 48,
+            "trigger_acc": 0.82,
+            "threat_recall": 0.8333333333333334,
+            "false_alarm_rate": 0.1813186813186813,
+            "n_tp": 15,
+            "n_fp": 33,
+            "n_fn": 3,
+            "n_tn": 149,
+            "escape_success_rate": 0.7777777777777778,
+            "dir_mae_deg": 16.83153730892817,
+            "gf_first_spike_ms": 7.133333333333334
+          },
+          {
+            "seed": 20240524,
+            "n_samples": 200,
+            "n_threat": 23,
+            "n_triggered": 56,
+            "trigger_acc": 0.825,
+            "threat_recall": 0.9565217391304348,
+            "false_alarm_rate": 0.192090395480226,
+            "n_tp": 22,
+            "n_fp": 34,
+            "n_fn": 1,
+            "n_tn": 143,
+            "escape_success_rate": 0.9565217391304348,
+            "dir_mae_deg": 17.138338002997894,
+            "gf_first_spike_ms": 7.2727272727272725
+          },
+          {
+            "seed": 20240525,
+            "n_samples": 200,
+            "n_threat": 16,
+            "n_triggered": 48,
+            "trigger_acc": 0.83,
+            "threat_recall": 0.9375,
+            "false_alarm_rate": 0.1793478260869565,
+            "n_tp": 15,
+            "n_fp": 33,
+            "n_fn": 1,
+            "n_tn": 151,
+            "escape_success_rate": 0.6875,
+            "dir_mae_deg": 20.97837682018247,
+            "gf_first_spike_ms": 6.866666666666666
+          }
+        ]
+      },
+      {
+        "id": "C2",
+        "label": "mid",
+        "group": "C",
+        "config": {
+          "mode": "fusion",
+          "env": "meadow",
+          "speed_range": "mid",
+          "speed_range_ms": [
+            3,
+            7
+          ],
+          "body": null
+        },
+        "n_seeds": 5,
+        "samples_per_seed": 200,
+        "n_samples": 1000,
+        "n_threat_total": 529,
+        "metrics": {
+          "trigger_acc": {
+            "mean": 0.7790000000000001,
+            "std": 0.031503968004046756,
+            "n_defined": 5
+          },
+          "threat_recall": {
+            "mean": 0.821908179566442,
+            "std": 0.04086333624464546,
+            "n_defined": 5
+          },
+          "false_alarm_rate": {
+            "mean": 0.26957189144929544,
+            "std": 0.046903824625617555,
+            "n_defined": 5
+          },
+          "escape_success_rate": {
+            "mean": 0.7425641869807793,
+            "std": 0.04894639391544446,
+            "n_defined": 5
+          },
+          "dir_mae_deg": {
+            "mean": 18.86078634609614,
+            "std": 0.4756772213604845,
+            "n_defined": 5
+          },
+          "gf_first_spike_ms": {
+            "mean": 7.362285000958463,
+            "std": 0.2037759180098944,
+            "n_defined": 5
+          }
+        },
+        "per_seed": [
+          {
+            "seed": 20240521,
+            "n_samples": 200,
+            "n_threat": 105,
+            "n_triggered": 115,
+            "trigger_acc": 0.81,
+            "threat_recall": 0.8666666666666667,
+            "false_alarm_rate": 0.25263157894736843,
+            "n_tp": 91,
+            "n_fp": 24,
+            "n_fn": 14,
+            "n_tn": 71,
+            "escape_success_rate": 0.7904761904761904,
+            "dir_mae_deg": 18.31593299593797,
+            "gf_first_spike_ms": 7.538461538461538
+          },
+          {
+            "seed": 20240522,
+            "n_samples": 200,
+            "n_threat": 108,
+            "n_triggered": 117,
+            "trigger_acc": 0.805,
+            "threat_recall": 0.8611111111111112,
+            "false_alarm_rate": 0.2608695652173913,
+            "n_tp": 93,
+            "n_fp": 24,
+            "n_fn": 15,
+            "n_tn": 68,
+            "escape_success_rate": 0.7777777777777778,
+            "dir_mae_deg": 18.47018598059772,
+            "gf_first_spike_ms": 7.494623655913978
+          },
+          {
+            "seed": 20240523,
+            "n_samples": 200,
+            "n_threat": 109,
+            "n_triggered": 108,
+            "trigger_acc": 0.785,
+            "threat_recall": 0.7981651376146789,
+            "false_alarm_rate": 0.23076923076923078,
+            "n_tp": 87,
+            "n_fp": 21,
+            "n_fn": 22,
+            "n_tn": 70,
+            "escape_success_rate": 0.6972477064220184,
+            "dir_mae_deg": 19.08929671412944,
+            "gf_first_spike_ms": 7.344827586206897
+          },
+          {
+            "seed": 20240524,
+            "n_samples": 200,
+            "n_threat": 106,
+            "n_triggered": 119,
+            "trigger_acc": 0.735,
+            "threat_recall": 0.8113207547169812,
+            "false_alarm_rate": 0.35106382978723405,
+            "n_tp": 86,
+            "n_fp": 33,
+            "n_fn": 20,
+            "n_tn": 61,
+            "escape_success_rate": 0.7641509433962265,
+            "dir_mae_deg": 19.4913320355658,
+            "gf_first_spike_ms": 7.023255813953488
+          },
+          {
+            "seed": 20240525,
+            "n_samples": 200,
+            "n_threat": 101,
+            "n_triggered": 103,
+            "trigger_acc": 0.76,
+            "threat_recall": 0.7722772277227723,
+            "false_alarm_rate": 0.25252525252525254,
+            "n_tp": 78,
+            "n_fp": 25,
+            "n_fn": 23,
+            "n_tn": 74,
+            "escape_success_rate": 0.6831683168316832,
+            "dir_mae_deg": 18.937184004249783,
+            "gf_first_spike_ms": 7.410256410256411
+          }
+        ]
+      },
+      {
+        "id": "C3",
+        "label": "high",
+        "group": "C",
+        "config": {
+          "mode": "fusion",
+          "env": "meadow",
+          "speed_range": "high",
+          "speed_range_ms": [
+            7,
+            12
+          ],
+          "body": null
+        },
+        "n_seeds": 5,
+        "samples_per_seed": 200,
+        "n_samples": 1000,
+        "n_threat_total": 649,
+        "metrics": {
+          "trigger_acc": {
+            "mean": 0.738,
+            "std": 0.01036822067666387,
+            "n_defined": 5
+          },
+          "threat_recall": {
+            "mean": 0.8689681079579336,
+            "std": 0.018590028651570417,
+            "n_defined": 5
+          },
+          "false_alarm_rate": {
+            "mean": 0.5044669980668324,
+            "std": 0.0601804759848088,
+            "n_defined": 5
+          },
+          "escape_success_rate": {
+            "mean": 0.7933624369816229,
+            "std": 0.02317162571840353,
+            "n_defined": 5
+          },
+          "dir_mae_deg": {
+            "mean": 18.021495539052204,
+            "std": 0.46745516765440126,
+            "n_defined": 5
+          },
+          "gf_first_spike_ms": {
+            "mean": 7.062803018840872,
+            "std": 0.11385872554735002,
+            "n_defined": 5
+          }
+        },
+        "per_seed": [
+          {
+            "seed": 20240521,
+            "n_samples": 200,
+            "n_threat": 129,
+            "n_triggered": 153,
+            "trigger_acc": 0.73,
+            "threat_recall": 0.8837209302325582,
+            "false_alarm_rate": 0.5492957746478874,
+            "n_tp": 114,
+            "n_fp": 39,
+            "n_fn": 15,
+            "n_tn": 32,
+            "escape_success_rate": 0.7906976744186046,
+            "dir_mae_deg": 18.35556689384226,
+            "gf_first_spike_ms": 7.166666666666667
+          },
+          {
+            "seed": 20240522,
+            "n_samples": 200,
+            "n_threat": 132,
+            "n_triggered": 151,
+            "trigger_acc": 0.745,
+            "threat_recall": 0.8787878787878788,
+            "false_alarm_rate": 0.5147058823529411,
+            "n_tp": 116,
+            "n_fp": 35,
+            "n_fn": 16,
+            "n_tn": 33,
+            "escape_success_rate": 0.8181818181818182,
+            "dir_mae_deg": 18.313423894686498,
+            "gf_first_spike_ms": 7.086206896551724
+          },
+          {
+            "seed": 20240523,
+            "n_samples": 200,
+            "n_threat": 128,
+            "n_triggered": 142,
+            "trigger_acc": 0.74,
+            "threat_recall": 0.8515625,
+            "false_alarm_rate": 0.4583333333333333,
+            "n_tp": 109,
+            "n_fp": 33,
+            "n_fn": 19,
+            "n_tn": 39,
+            "escape_success_rate": 0.765625,
+            "dir_mae_deg": 17.417361386550933,
+            "gf_first_spike_ms": 7.073394495412844
+          },
+          {
+            "seed": 20240524,
+            "n_samples": 200,
+            "n_threat": 130,
+            "n_triggered": 155,
+            "trigger_acc": 0.725,
+            "threat_recall": 0.8846153846153846,
+            "false_alarm_rate": 0.5714285714285714,
+            "n_tp": 115,
+            "n_fp": 40,
+            "n_fn": 15,
+            "n_tn": 30,
+            "escape_success_rate": 0.8153846153846154,
+            "dir_mae_deg": 18.40554021173983,
+            "gf_first_spike_ms": 6.869565217391305
+          },
+          {
+            "seed": 20240525,
+            "n_samples": 200,
+            "n_threat": 130,
+            "n_triggered": 140,
+            "trigger_acc": 0.75,
+            "threat_recall": 0.8461538461538461,
+            "false_alarm_rate": 0.42857142857142855,
+            "n_tp": 110,
+            "n_fp": 30,
+            "n_fn": 20,
+            "n_tn": 40,
+            "escape_success_rate": 0.7769230769230769,
+            "dir_mae_deg": 17.615585308441496,
+            "gf_first_spike_ms": 7.118181818181818
+          }
+        ]
+      }
+    ],
+    "D": [
+      {
+        "id": "D1",
+        "label": "fly",
+        "group": "D",
+        "config": {
+          "mode": "fusion",
+          "env": "meadow",
+          "speed_range": "mid",
+          "speed_range_ms": [
+            3,
+            7
+          ],
+          "body": "fly"
+        },
+        "n_seeds": 5,
+        "samples_per_seed": 200,
+        "n_samples": 1000,
+        "n_threat_total": 529,
+        "metrics": {
+          "trigger_acc": {
+            "mean": 0.7790000000000001,
+            "std": 0.031503968004046756,
+            "n_defined": 5
+          },
+          "threat_recall": {
+            "mean": 0.821908179566442,
+            "std": 0.04086333624464546,
+            "n_defined": 5
+          },
+          "false_alarm_rate": {
+            "mean": 0.26957189144929544,
+            "std": 0.046903824625617555,
+            "n_defined": 5
+          },
+          "escape_success_rate": {
+            "mean": 0.7425641869807793,
+            "std": 0.04894639391544446,
+            "n_defined": 5
+          },
+          "dir_mae_deg": {
+            "mean": 18.86078634609614,
+            "std": 0.4756772213604845,
+            "n_defined": 5
+          },
+          "gf_first_spike_ms": {
+            "mean": 7.362285000958463,
+            "std": 0.2037759180098944,
+            "n_defined": 5
+          },
+          "physical_success_rate": {
+            "mean": 0.6962241854393902,
+            "std": 0.046484215875793704,
+            "n_defined": 5
+          },
+          "stationary_safe_rate": {
+            "mean": 0.6846052445695618,
+            "std": 0.04401303630590416,
+            "n_defined": 5
+          },
+          "action_saved_rate": {
+            "mean": 0.015358565159911228,
+            "std": 0.011245189997567911,
+            "n_defined": 5
+          }
+        },
+        "per_seed": [
+          {
+            "seed": 20240521,
+            "n_samples": 200,
+            "n_threat": 105,
+            "n_triggered": 115,
+            "trigger_acc": 0.81,
+            "threat_recall": 0.8666666666666667,
+            "false_alarm_rate": 0.25263157894736843,
+            "n_tp": 91,
+            "n_fp": 24,
+            "n_fn": 14,
+            "n_tn": 71,
+            "escape_success_rate": 0.7904761904761904,
+            "dir_mae_deg": 18.31593299593797,
+            "gf_first_spike_ms": 7.538461538461538,
+            "physical_success_rate": 0.7714285714285715,
+            "stationary_safe_rate": 0.7619047619047619,
+            "action_saved_rate": 0.01904761904761905
+          },
+          {
+            "seed": 20240522,
+            "n_samples": 200,
+            "n_threat": 108,
+            "n_triggered": 117,
+            "trigger_acc": 0.805,
+            "threat_recall": 0.8611111111111112,
+            "false_alarm_rate": 0.2608695652173913,
+            "n_tp": 93,
+            "n_fp": 24,
+            "n_fn": 15,
+            "n_tn": 68,
+            "escape_success_rate": 0.7777777777777778,
+            "dir_mae_deg": 18.47018598059772,
+            "gf_first_spike_ms": 7.494623655913978,
+            "physical_success_rate": 0.6666666666666666,
+            "stationary_safe_rate": 0.6666666666666666,
+            "action_saved_rate": 0
+          },
+          {
+            "seed": 20240523,
+            "n_samples": 200,
+            "n_threat": 109,
+            "n_triggered": 108,
+            "trigger_acc": 0.785,
+            "threat_recall": 0.7981651376146789,
+            "false_alarm_rate": 0.23076923076923078,
+            "n_tp": 87,
+            "n_fp": 21,
+            "n_fn": 22,
+            "n_tn": 70,
+            "escape_success_rate": 0.6972477064220184,
+            "dir_mae_deg": 19.08929671412944,
+            "gf_first_spike_ms": 7.344827586206897,
+            "physical_success_rate": 0.6513761467889908,
+            "stationary_safe_rate": 0.6513761467889908,
+            "action_saved_rate": 0.009174311926605505
+          },
+          {
+            "seed": 20240524,
+            "n_samples": 200,
+            "n_threat": 106,
+            "n_triggered": 119,
+            "trigger_acc": 0.735,
+            "threat_recall": 0.8113207547169812,
+            "false_alarm_rate": 0.35106382978723405,
+            "n_tp": 86,
+            "n_fp": 33,
+            "n_fn": 20,
+            "n_tn": 61,
+            "escape_success_rate": 0.7641509433962265,
+            "dir_mae_deg": 19.4913320355658,
+            "gf_first_spike_ms": 7.023255813953488,
+            "physical_success_rate": 0.6886792452830188,
+            "stationary_safe_rate": 0.6698113207547169,
+            "action_saved_rate": 0.018867924528301886
+          },
+          {
+            "seed": 20240525,
+            "n_samples": 200,
+            "n_threat": 101,
+            "n_triggered": 103,
+            "trigger_acc": 0.76,
+            "threat_recall": 0.7722772277227723,
+            "false_alarm_rate": 0.25252525252525254,
+            "n_tp": 78,
+            "n_fp": 25,
+            "n_fn": 23,
+            "n_tn": 74,
+            "escape_success_rate": 0.6831683168316832,
+            "dir_mae_deg": 18.937184004249783,
+            "gf_first_spike_ms": 7.410256410256411,
+            "physical_success_rate": 0.7029702970297029,
+            "stationary_safe_rate": 0.6732673267326733,
+            "action_saved_rate": 0.0297029702970297
+          }
+        ]
+      },
+      {
+        "id": "D2",
+        "label": "drone",
+        "group": "D",
+        "config": {
+          "mode": "fusion",
+          "env": "meadow",
+          "speed_range": "mid",
+          "speed_range_ms": [
+            3,
+            7
+          ],
+          "body": "drone"
+        },
+        "n_seeds": 5,
+        "samples_per_seed": 200,
+        "n_samples": 1000,
+        "n_threat_total": 529,
+        "metrics": {
+          "trigger_acc": {
+            "mean": 0.7790000000000001,
+            "std": 0.031503968004046756,
+            "n_defined": 5
+          },
+          "threat_recall": {
+            "mean": 0.821908179566442,
+            "std": 0.04086333624464546,
+            "n_defined": 5
+          },
+          "false_alarm_rate": {
+            "mean": 0.26957189144929544,
+            "std": 0.046903824625617555,
+            "n_defined": 5
+          },
+          "escape_success_rate": {
+            "mean": 0.7425641869807793,
+            "std": 0.04894639391544446,
+            "n_defined": 5
+          },
+          "dir_mae_deg": {
+            "mean": 18.86078634609614,
+            "std": 0.4756772213604845,
+            "n_defined": 5
+          },
+          "gf_first_spike_ms": {
+            "mean": 7.362285000958463,
+            "std": 0.2037759180098944,
+            "n_defined": 5
+          },
+          "physical_success_rate": {
+            "mean": 0.6904704025139278,
+            "std": 0.04765174642205197,
+            "n_defined": 5
+          },
+          "stationary_safe_rate": {
+            "mean": 0.6846052445695618,
+            "std": 0.04401303630590416,
+            "n_defined": 5
+          },
+          "action_saved_rate": {
+            "mean": 0.009604782234448873,
+            "std": 0.009719040611304198,
+            "n_defined": 5
+          }
+        },
+        "per_seed": [
+          {
+            "seed": 20240521,
+            "n_samples": 200,
+            "n_threat": 105,
+            "n_triggered": 115,
+            "trigger_acc": 0.81,
+            "threat_recall": 0.8666666666666667,
+            "false_alarm_rate": 0.25263157894736843,
+            "n_tp": 91,
+            "n_fp": 24,
+            "n_fn": 14,
+            "n_tn": 71,
+            "escape_success_rate": 0.7904761904761904,
+            "dir_mae_deg": 18.31593299593797,
+            "gf_first_spike_ms": 7.538461538461538,
+            "physical_success_rate": 0.7714285714285715,
+            "stationary_safe_rate": 0.7619047619047619,
+            "action_saved_rate": 0.01904761904761905
+          },
+          {
+            "seed": 20240522,
+            "n_samples": 200,
+            "n_threat": 108,
+            "n_triggered": 117,
+            "trigger_acc": 0.805,
+            "threat_recall": 0.8611111111111112,
+            "false_alarm_rate": 0.2608695652173913,
+            "n_tp": 93,
+            "n_fp": 24,
+            "n_fn": 15,
+            "n_tn": 68,
+            "escape_success_rate": 0.7777777777777778,
+            "dir_mae_deg": 18.47018598059772,
+            "gf_first_spike_ms": 7.494623655913978,
+            "physical_success_rate": 0.6666666666666666,
+            "stationary_safe_rate": 0.6666666666666666,
+            "action_saved_rate": 0
+          },
+          {
+            "seed": 20240523,
+            "n_samples": 200,
+            "n_threat": 109,
+            "n_triggered": 108,
+            "trigger_acc": 0.785,
+            "threat_recall": 0.7981651376146789,
+            "false_alarm_rate": 0.23076923076923078,
+            "n_tp": 87,
+            "n_fp": 21,
+            "n_fn": 22,
+            "n_tn": 70,
+            "escape_success_rate": 0.6972477064220184,
+            "dir_mae_deg": 19.08929671412944,
+            "gf_first_spike_ms": 7.344827586206897,
+            "physical_success_rate": 0.6513761467889908,
+            "stationary_safe_rate": 0.6513761467889908,
+            "action_saved_rate": 0.009174311926605505
+          },
+          {
+            "seed": 20240524,
+            "n_samples": 200,
+            "n_threat": 106,
+            "n_triggered": 119,
+            "trigger_acc": 0.735,
+            "threat_recall": 0.8113207547169812,
+            "false_alarm_rate": 0.35106382978723405,
+            "n_tp": 86,
+            "n_fp": 33,
+            "n_fn": 20,
+            "n_tn": 61,
+            "escape_success_rate": 0.7641509433962265,
+            "dir_mae_deg": 19.4913320355658,
+            "gf_first_spike_ms": 7.023255813953488,
+            "physical_success_rate": 0.6698113207547169,
+            "stationary_safe_rate": 0.6698113207547169,
+            "action_saved_rate": 0
+          },
+          {
+            "seed": 20240525,
+            "n_samples": 200,
+            "n_threat": 101,
+            "n_triggered": 103,
+            "trigger_acc": 0.76,
+            "threat_recall": 0.7722772277227723,
+            "false_alarm_rate": 0.25252525252525254,
+            "n_tp": 78,
+            "n_fp": 25,
+            "n_fn": 23,
+            "n_tn": 74,
+            "escape_success_rate": 0.6831683168316832,
+            "dir_mae_deg": 18.937184004249783,
+            "gf_first_spike_ms": 7.410256410256411,
+            "physical_success_rate": 0.693069306930693,
+            "stationary_safe_rate": 0.6732673267326733,
+            "action_saved_rate": 0.019801980198019802
+          }
+        ]
+      }
+    ]
+  },
+  "group_titles": {
+    "A": "A 组：模态对照 × meadow（全速域 0.3–12 m/s）",
+    "B": "B 组：环境 × fusion（全速域 0.3–12 m/s）",
+    "C": "C 组：突袭速度 × fusion × meadow",
+    "D": "D 组：换体 × fusion × meadow × mid（3–7 m/s）"
+  }
+}

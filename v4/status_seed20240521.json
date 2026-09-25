@@ -1,0 +1,8 @@
+{
+  "seed": 20240521,
+  "epoch": 25,
+  "epochs_max": 25,
+  "best_val": 0.792756552696228,
+  "best_epoch": 22,
+  "state": "done"
+}

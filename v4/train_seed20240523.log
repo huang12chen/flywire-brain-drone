@@ -1,0 +1,45 @@
+[v4] 图：1871 节点 / 45524 边 | 视觉入 210 | 风觉入 325 | GF 2 | 输出 169
+代理梯度: snntorch surrogate.fast_sigmoid
+[v4] 训练种子=20240523 | N_TRAIN=50000 | 高斯噪声 σ~U(0,0.05) | 模态 dropout p=0.12 | wd=0.0001 | 早停 patience=6 (盯验证损失)
+数据生成 2.5s | 训练 50000（威胁 24369）| 验证 1200（威胁 568）| OOD 2000（威胁 978）
+epoch  1/25  train_loss=0.9740  val_loss=0.8075  lr=0.00199  gap=+0.1665  (best)  (249s)
+epoch  2/25  train_loss=0.8677  val_loss=0.7619  lr=0.00197  gap=+0.1058  (best)  (626s)
+epoch  3/25  train_loss=0.8456  val_loss=0.7292  lr=0.00194  gap=+0.1165  (best)  (1070s)
+epoch  4/25  train_loss=0.8355  val_loss=0.7301  lr=0.00189  gap=+0.1054  (bad=1/6)  (1464s)
+epoch  5/25  train_loss=0.8295  val_loss=0.7126  lr=0.00183  gap=+0.1169  (best)  (2322s)
+epoch  6/25  train_loss=0.8213  val_loss=0.7049  lr=0.00176  gap=+0.1164  (best)  (3282s)
+epoch  7/25  train_loss=0.8231  val_loss=0.7216  lr=0.00167  gap=+0.1015  (bad=1/6)  (4258s)
+epoch  8/25  train_loss=0.8185  val_loss=0.7262  lr=0.00158  gap=+0.0923  (bad=2/6)  (5235s)
+epoch  9/25  train_loss=0.8213  val_loss=0.7021  lr=0.00148  gap=+0.1193  (best)  (6206s)
+epoch 10/25  train_loss=0.8169  val_loss=0.6822  lr=0.00138  gap=+0.1348  (best)  (7134s)
+epoch 11/25  train_loss=0.8196  val_loss=0.7065  lr=0.00127  gap=+0.1131  (bad=1/6)  (8056s)
+epoch 12/25  train_loss=0.8146  val_loss=0.6987  lr=0.00116  gap=+0.1159  (bad=2/6)  (8980s)
+epoch 13/25  train_loss=0.8159  val_loss=0.6984  lr=0.00104  gap=+0.1176  (bad=3/6)  (9907s)
+epoch 14/25  train_loss=0.8187  val_loss=0.7004  lr=0.00093  gap=+0.1183  (bad=4/6)  (10832s)
+epoch 15/25  train_loss=0.8186  val_loss=0.7027  lr=0.00082  gap=+0.1159  (bad=5/6)  (11511s)
+epoch 16/25  train_loss=0.8213  val_loss=0.7094  lr=0.00072  gap=+0.1118  (bad=6/6)  (11848s)
+== 早停：验证损失连续 6 轮未改善（最优 ep10 val=0.6822）==
+
+已恢复最优权重（val_loss=0.6822 @ ep10）
+
+===== 对照评估（同一验证集 1200 条，干净编码，与 v3 同口径） =====
+===== OOD 评估（2000 条偏移分布，传感器噪声×2；训练/验证从未使用） =====
+
+[验证集]
+组别                 触发准确率(GF)        触发准确率(头)         避障成功率       方向误差(°)     GF潜伏期(ms)
+fusion                 0.777           0.802         0.722          19.7          7.04
+vision_only            0.791           0.753         0.683          20.2          7.73
+wind_only              0.557           0.527         0.069          43.6          8.87
+
+[OOD集]
+组别                 触发准确率(GF)        触发准确率(头)         避障成功率       方向误差(°)     GF潜伏期(ms)
+fusion                 0.569           0.631         0.512          29.6          5.93
+vision_only            0.670           0.714         0.472          30.0          7.06
+wind_only              0.526           0.511         0.083          64.5          7.66
+
+弱线索预激活(priming)测试 —— GF 放电比例与首次放电潜伏期：
+  weak_vision    fire_rate=0.02  first_spike=10.00 ms
+  weak_wind      fire_rate=0.07  first_spike=9.50 ms
+  weak_both      fire_rate=0.27  first_spike=7.94 ms
+
+导出完成: v4/snn_trained_seed20240523.json / v4/metrics_seed20240523.json / v4/training_curve_seed20240523.png

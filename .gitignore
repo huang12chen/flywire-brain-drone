@@ -1,0 +1,21 @@
+# 本地依赖（体积大，不入库）
+pylibs/
+
+# 训练检查点（大文件）
+*.pt
+v4/ckpt*
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# %TEMP% 产物 / 临时文件
+.tmp/
+*.tmp
+*.log.tmp
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
