@@ -926,8 +926,10 @@ function animate(now) {
 }
 
 /* ----------  ---------- */
-window.onerror=function(m,s,l,c,e){var d=document.createElement('div');d.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:red;color:#fff;padding:20px;font:14px monospace;border-radius:8px;white-space:pre';d.textContent='JS ERROR:\n'+m+'\nLine:'+l+'\n'+(e.stack||'').split('\n').slice(0,3).join('\n');document.body.appendChild(d)};
-try{FX.init(scene);FX.setScene('meadow');addAgent('fly',0,0);toast('Welcome');requestAnimationFrame(animate)}catch(e){var d=document.createElement('div');d.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:red;color:#fff;padding:20px;font:14px monospace;border-radius:8px;white-space:pre';d.textContent='STARTUP ERR:\n'+e.message+'\n'+(e.stack||'').split('\n').slice(0,5).join('\n');document.body.appendChild(d)}
+FX.init(scene); FX.setScene('meadow');
+addAgent('fly', 0, 0);
+toast('Welcome to the micro world: God Console is on the right');
+requestAnimationFrame(animate);
 </script>
 </body>
 </html>
