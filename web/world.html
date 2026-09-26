@@ -77,7 +77,8 @@
   <button id="bPhys">⚙️ Flight Dynamics: ON</button>
   <span class="dim">WASD/Arrow keys when manual, any key = immediate override</span>
   <h2>🔋 Battery (Cosmetic)</h2>
-  <span class="mbar" style="width:120px"><i id="mBat" style="width:100%"></i></span> <b id="mBatV">100%</b>
+  <span class="mbar" style="width:120px"><i id="mBat" style="width:100%"></i></span> <b id="mBatV">100%</b><br>
+  🪰 Energy: <span class="mbar" style="width:120px"><i id="mEnergy" style="width:100%;background:linear-gradient(90deg,#e8a020,#4CAF50)"></i></span> <b id="mEnergyV">100%</b>
   <button id="bLand">🛬 Land</button><button id="bTakeoff">🛫 Takeoff</button>
   <span class="dim">100→0 in 10min, auto-land when depleted; takeoff anytime</span>
   <h2>🪰 Agents</h2>
@@ -301,7 +302,7 @@ function addAgent(kind, x, z) {
   const a = {
     kind, spec, mesh, brain: new SNNRuntime(window.SNN_DATA),
     vel: new THREE.Vector3(), goalDir: new THREE.Vector3(1, 0, 0),
-    bionic: true, mode: 'Bionic', escaped: false, lastDecision: 0, wanderT: 0,
+    bionic: true, mode: 'Bionic', escaped: false, lastDecision: 0, wanderT: 0, energy: 100, resting: false,
     stats: { rounds: 0, esc: 0, hit: 0, fa: 0, angSum: 0, angN: 0 },
     manualKeys: {}, wingT: Math.random() * 6,
   };
@@ -526,6 +527,16 @@ function driveAgent(a, dtMs, now) {
     }
     return;
   }
+  // 休眠/停栖：能量耗尽后自动休息，缓慢恢复
+  if (a.resting) {
+    a.energy = Math.min(100, a.energy + 5 * dtMs / 1000);  // 恢复 +5/秒
+    if (a.energy >= 30) {
+      a.resting = false;
+      toast('🪰 Energy recovered — resuming cruise');
+    } else {
+      return;  // 休息中：速度归零，停止决策
+    }
+  }
   const w = WEATHER[weather];
   // ++Bionic → DronePhysics+DroneAdapter；/Manual/ → （Pilot）
   const dronePhys = ensureDronePhys(a);
@@ -641,6 +652,22 @@ function driveAgent(a, dtMs, now) {
       a.mesh.lookAt(look);
     }
   }
+  // 能量消耗（飞手手动控制时不消耗，人控优先）
+  if (a.bionic) {
+    const dtSec = dtMs / 1000;
+    if (a.escaped) {
+      a.energy -= 5 * dtSec;           // 逃逸：-5/秒
+    } else {
+      a.energy -= 0.5 * dtSec;         // 巡航：-0.5/秒
+    }
+    if (a.energy <= 0) {
+      a.energy = 0;
+      a.resting = true;
+      a.vel.set(0, 0, 0);             // 速度归零
+      if (a.phys) { a.phys.vel.set(0, 0, 0); }
+      toast('🪰 Exhausted — resting to recover energy');
+    }
+  }
   // Wing//（v5：+、、、、）
   a.wingT += dtMs;
   if (a.kind === 'fly') {
@@ -724,7 +751,7 @@ function driveThreats(dtMs, now) {
 }
 function respawn(a) {
   a.mesh.position.set(Math.random() * 40 - 20, 10, Math.random() * 40 - 20);
-  a.vel.set(0, 0, 0); a.escaped = false;   //  = （）
+  a.vel.set(0, 0, 0); a.escaped = false; a.energy = 100; a.resting = false;   //  = （）
 }
 
 /* ---------- （） ---------- */
@@ -784,7 +811,7 @@ addEventListener('mouseup', () => {
 function updateHUD() {
   const a = selAgent;
   if (!a) {                                        // ：，
-    for (const id of ['mBody', 'mMode', 'mLoom', 'mWind', 'mV', 'mGF', 'mLat', 'mRounds', 'mEsc', 'mHit', 'mFA', 'mRate', 'mAng', 'mFsm', 'mRoll', 'mPitch']) document.getElementById(id).textContent = '—';
+    for (const id of ['mBody', 'mMode', 'mLoom', 'mWind', 'mV', 'mGF', 'mLat', 'mRounds', 'mEsc', 'mHit', 'mFA', 'mRate', 'mAng', 'mFsm', 'mRoll', 'mPitch', 'mEnergyV']) document.getElementById(id).textContent = '—';
     for (let i = 1; i <= 4; i++) document.getElementById('mM' + i).style.width = '0';
     return;
   }
@@ -824,6 +851,10 @@ function updateHUD() {
     document.getElementById('mRoll').textContent = '—';
     document.getElementById('mPitch').textContent = '—';
   }
+  // 能量条显示
+  const enPct = Math.max(0, Math.min(100, a.energy));
+  document.getElementById('mEnergy').style.width = enPct + '%';
+  document.getElementById('mEnergyV').textContent = enPct.toFixed(0) + '%' + (a.resting ? ' 💤 Resting' : '');
 }
 
 let toastTimer = null;
