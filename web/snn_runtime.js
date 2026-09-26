@@ -36,7 +36,7 @@
 
     this.inVision = Int32Array.from(data.input_vision_indices);
     this.inWind = Int32Array.from(data.input_wind_indices);
-    this.hub = Int32Array.from(data.head_gf_indices);
+    this.hub = Int32Array.from(data.hub_gf_indices);
     this.out = Int32Array.from(data.output_indices);
     this.inGain = Float32Array.from(data.in_gain);
 
