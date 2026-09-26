@@ -46,7 +46,7 @@
 <div id="hud" class="panel">
   <h1>Fruit Fly · Micro World</h1>
   Scene: <b id="mScene">Meadow</b>　Weather: <b id="mWeather">Sunny</b><br>
-  Body: <b id="mBody">Fruit Fly</b>　Control: <span id="mMode" class="tag ok">Bionic</span><br>
+  Body: <b id="mBody">Fruit Fly</b><br>
   <hr>
   Loom Rate: <b id="mLoom">0.00</b> rad/s<br>
   Wind |u|: <b id="mWind">0.0000</b><br>
@@ -56,12 +56,7 @@
   <span class="dim">Cumulative (Scored Rounds)</span><br>
   Rounds <b id="mRounds">0</b>｜Escapes <b id="mEsc">0</b>｜Hits <b id="mHit">0</b>｜False Alarms <b id="mFA">0</b><br>
   Success Rate <b id="mRate">—</b>｜Direction Error <b id="mAng">—</b>
-  <hr>
-  <span class="dim">Flight Telemetry (Drone · Flight Dynamics)</span><br>
-  State Machine: <b id="mFsm">—</b><br>
-  M1 <span class="mbar"><i id="mM1"></i></span>　M2 <span class="mbar"><i id="mM2"></i></span><br>
-  M3 <span class="mbar"><i id="mM3"></i></span>　M4 <span class="mbar"><i id="mM4"></i></span><br>
-  roll：<b id="mRoll">—</b>　pitch：<b id="mPitch">—</b>
+
 </div>
 
 <div id="god" class="panel">
@@ -73,14 +68,8 @@
   <button data-scene="gale">Gale</button>
   <br>Agent (selected): 
   <button id="bFly">Fruit Fly Body</button><button id="bDrone">Drone Body</button>
-  <br>Control: <button id="bMode">🤖 Bionic (click to switch manual)</button>
-  <button id="bPhys">⚙️ Flight Dynamics: ON</button>
-  <span class="dim">WASD/Arrow keys when manual, any key = immediate override</span>
-  <h2>🔋 Battery (Cosmetic)</h2>
-  <span class="mbar" style="width:120px"><i id="mBat" style="width:100%"></i></span> <b id="mBatV">100%</b><br>
-  🪰 Energy: <span class="mbar" style="width:120px"><i id="mEnergy" style="width:100%;background:linear-gradient(90deg,#e8a020,#4CAF50)"></i></span> <b id="mEnergyV">100%</b>
-  <button id="bLand">🛬 Land</button><button id="bTakeoff">🛫 Takeoff</button>
-  <span class="dim">100→0 in 10min, auto-land when depleted; takeoff anytime</span>
+  <br>
+  <br>🪰 Energy: <span class="mbar" style="width:120px"><i id="mEnergy" style="width:100%;background:linear-gradient(90deg,#e8a020,#4CAF50)"></i></span> <b id="mEnergyV">100%</b>
   <h2>🪰 Agents</h2>
   <button id="bAddFly">+ Add Fruit Fly</button>
   <button id="bAddDrone">+ Add Drone</button>
@@ -305,19 +294,18 @@ function addAgent(kind, x, z) {
     vel: new THREE.Vector3(), goalDir: new THREE.Vector3(1, 0, 0),
     bionic: true, mode: 'Bionic', escaped: false, lastDecision: 0, wanderT: 0, energy: 100, resting: false,
     stats: { rounds: 0, esc: 0, hit: 0, fa: 0, angSum: 0, angN: 0 },
-    manualKeys: {}, wingT: Math.random() * 6,
+    wingT: Math.random() * 6,
     groundY: groundY,
     isGrounded: kind === 'fly',
     groundTimer: 0,
     flyTimer: 0,
   };
   agents.push(a); refreshAgentList(); selectAgent(a);
-  toast(`${spec.name} added to world（${a.bionic ? 'Bionic' : 'Manual'}）`);
+  toast(`${spec.name} added to world`);
   return a;
 }
 function selectAgent(a) {
   selAgent = a; refreshAgentList();
-  document.getElementById('bMode').textContent = a.bionic ? '🤖 Bionic (click to switch manual)' : '🛫 Manual (click to switch bionic)';   // ，
 }
 function refreshAgentList() {
   const sel = document.getElementById('selAgent');
@@ -332,10 +320,9 @@ document.getElementById('bAddDrone').onclick = () => addAgent('drone');
 document.getElementById('bDel').onclick = () => {
   if (!selAgent) return; scene.remove(selAgent.mesh);
   agents.splice(agents.indexOf(selAgent), 1); selAgent = agents[0] || null;
-  if (selAgent) { selectAgent(selAgent); }        //  bMode （""）
+  if (selAgent) { selectAgent(selAgent); }
   else {
     refreshAgentList();
-    document.getElementById('bMode').textContent = '— (no agent)';
   }
 };
 document.getElementById('bFly').onclick = () => swapBody('fly');
@@ -464,14 +451,9 @@ function computeCues(th, ag) {
 
 /* ---------- 1/2 ： = DronePhysics() + DroneAdapter(→) ----------
    （）；Pilot， ---------- */
-let DRONE_PHYS_ON = true;                           // "⚙️ "：=，=（）
-document.getElementById('bPhys').onclick = () => {
-  DRONE_PHYS_ON = !DRONE_PHYS_ON;
-  document.getElementById('bPhys').textContent = '⚙️ ：' + (DRONE_PHYS_ON ? '' : '');
-  toast(DRONE_PHYS_ON ? 'Flight Dynamics ON:  DronePhysics+DroneAdapter' : 'Flight Dynamics OFF: ');
-};
+let DRONE_PHYS_ON = true;
 function ensureDronePhys(a) {
-  const want = a.kind === 'drone' && DRONE_PHYS_ON && a.bionic && !!window.DronePhysics && !!window.DroneAdapter;
+  const want = a.kind === 'drone' && DRONE_PHYS_ON && !!window.DronePhysics && !!window.DroneAdapter;
   if (!want) { a.physOn = false; return false; }
   if (!a.phys) a.phys = new DronePhysics();
   if (!a.adapter) a.adapter = new DroneAdapter({ rng: DroneAdapter.makeRng(1234 + agents.indexOf(a)) });   //  rng 
@@ -486,41 +468,6 @@ function ensureDronePhys(a) {
   }
   return true;
 }
-
-/* ---------- 3： + Landing/Takeoff（100→0  10min， LAND；PilotTakeoff） ---------- */
-let batStart = performance.now(), autoLanded = false;
-document.getElementById('bLand').onclick = () => {
-  let n = 0;
-  for (const a of agents) if (a.adapter) { a.adapter.enterLand(); n++; }
-  toast(n ? '🛬 Landing（ DroneAdapter  LAND ）' : 'LandingDrone Body + ');
-};
-document.getElementById('bTakeoff').onclick = () => {
-  batStart = performance.now(); autoLanded = false;
-  for (const a of agents) if (a.adapter) a.adapter.enterCruise();
-  toast('🛫 Takeoff： 100%，auto-landing（Pilot）');
-};
-
-/* ---------- ：Manual / Bionic（Pilot=） ---------- */
-document.getElementById('bMode').onclick = () => {
-  if (!selAgent) return;
-  selAgent.bionic = !selAgent.bionic;
-  document.getElementById('bMode').textContent = selAgent.bionic ? '🤖 Bionic (click to switch manual)' : '🛫 Manual (click to switch bionic)';
-  toast(selAgent.bionic ? 'Bionic system online' : 'Manual mode：SNN ，');
-};
-addEventListener('keydown', e => {
-  if (!selAgent) return;
-  const k = e.key.toLowerCase();
-  if (['shift', 'control', 'alt', 'meta', 'altgraph'].includes(k)) return;  // 
-  if (selAgent.bionic) {
-    // ：Pilot = ，SNN （Pilot）
-    selAgent.bionic = false;
-    selAgent.escaped = false;   // ，Bionic
-    document.getElementById('bMode').textContent = '🛫 Manual (click to switch bionic)';
-    toast('🛫 Pilot key = immediate override, SNN output cut');
-  }
-  selAgent.manualKeys[k] = true;
-});
-addEventListener('keyup', e => { if (selAgent) selAgent.manualKeys[e.key.toLowerCase()] = false; });
 
 /* ---------- ： + SNN  ---------- */
 function driveAgent(a, dtMs, now) {
@@ -548,16 +495,6 @@ function driveAgent(a, dtMs, now) {
   // （Gale）——；
   if (!dronePhys) { a.vel.x += w.wind[0] * dtMs; a.vel.z += w.wind[2] * dtMs; }
 
-  if (!a.bionic) {
-    // Manual：WASD/（Pilot，SNN ）
-    const k = a.manualKeys;
-    const fwd = (k['w'] || k['arrowup'] ? 1 : 0) - (k['s'] || k['arrowdown'] ? 1 : 0);
-    const side = (k['d'] || k['arrowright'] ? 1 : 0) - (k['a'] || k['arrowleft'] ? 1 : 0);
-    if (fwd || side) {
-      a.vel.x += side * a.spec.accel * dtMs;
-      a.vel.z -= fwd * a.spec.accel * dtMs;
-    }
-  } else {
     // （）—— DroneAdapter  CRUISE 
     if (!dronePhys) {
       // === 果蝇：极弱随机漂移（漫无目的闲逛）===
@@ -680,7 +617,6 @@ function driveAgent(a, dtMs, now) {
         }
       }
     }
-  }
   if (!dronePhys) {
     // 、、
     const sp = a.vel.length();
@@ -699,21 +635,19 @@ function driveAgent(a, dtMs, now) {
       a.mesh.lookAt(look);
     }
   }
-  // 能量消耗（飞手手动控制时不消耗，人控优先）
-  if (a.bionic) {
-    const dtSec = dtMs / 1000;
-    if (a.escaped) {
-      a.energy -= 5 * dtSec;           // 逃逸：-5/秒
-    } else {
-      a.energy -= 0.5 * dtSec;         // 巡航：-0.5/秒
-    }
-    if (a.energy <= 0) {
-      a.energy = 0;
-      a.resting = true;
-      a.vel.set(0, 0, 0);             // 速度归零
-      if (a.phys) { a.phys.vel.set(0, 0, 0); }
-      toast('🪰 Exhausted — resting to recover energy');
-    }
+  // 能量消耗
+  const dtSec = dtMs / 1000;
+  if (a.escaped) {
+    a.energy -= 5 * dtSec;
+  } else {
+    a.energy -= 0.5 * dtSec;
+  }
+  if (a.energy <= 0) {
+    a.energy = 0;
+    a.resting = true;
+    a.vel.set(0, 0, 0);
+    if (a.phys) { a.phys.vel.set(0, 0, 0); }
+    toast('🪰 Exhausted — resting to recover energy');
   }
   // Wing//（v5：+、、、、）
   a.wingT += dtMs;
@@ -857,23 +791,19 @@ addEventListener('mouseup', () => {
 /* ---------- HUD ---------- */
 function updateHUD() {
   const a = selAgent;
-  if (!a) {                                        // ：，
-    for (const id of ['mBody', 'mMode', 'mLoom', 'mWind', 'mV', 'mGF', 'mLat', 'mRounds', 'mEsc', 'mHit', 'mFA', 'mRate', 'mAng', 'mFsm', 'mRoll', 'mPitch', 'mEnergyV']) document.getElementById(id).textContent = '—';
-    for (let i = 1; i <= 4; i++) document.getElementById('mM' + i).style.width = '0';
+  if (!a) {
+    for (const id of ['mBody', 'mLoom', 'mWind', 'mV', 'mGF', 'mLat', 'mRounds', 'mEsc', 'mHit', 'mFA', 'mRate', 'mAng', 'mEnergyV']) document.getElementById(id).textContent = '—';
     return;
   }
   document.getElementById('mBody').textContent = a.spec.name;
-  const mt = document.getElementById('mMode');
-  mt.textContent = a.bionic ? 'Bionic' : 'Manual';
-  mt.className = 'tag ' + (a.bionic ? 'ok' : 'dim');
-  const active = threats.some(t => t.target === a && !t.resolved);          // ""
-  const o = (a.bionic && active) ? a.lastOut : null, c = (a.bionic && active) ? a.lastCues : null;  // Manual/
+  const active = threats.some(t => t.target === a && !t.resolved);
+  const o = active ? a.lastOut : null, c = active ? a.lastCues : null;
   document.getElementById('mLoom').textContent = c ? c.loom.toFixed(2) : '—';
   document.getElementById('mWind').textContent = c ? Math.hypot(c.wind.x, c.wind.y, c.wind.z).toFixed(4) : '—';
   document.getElementById('mV').textContent = o ? o.vHubMax.toFixed(2) : '—';
   document.getElementById('mGF').textContent = o ? (o.triggered ? 'Firing!' : 'Resting') : 'Not running';
   document.getElementById('mGF').className = o && o.triggered ? 'ok' : 'dim';
-  document.getElementById('mLat').textContent = (a.bionic && active && a.lat) ? a.lat + ' ms' : '—';
+  document.getElementById('mLat').textContent = (active && a.lat) ? a.lat + ' ms' : '—';
   const s = a.stats;
   document.getElementById('mRounds').textContent = s.rounds;
   document.getElementById('mEsc').textContent = s.esc;
@@ -881,23 +811,6 @@ function updateHUD() {
   document.getElementById('mFA').textContent = s.fa;
   document.getElementById('mRate').textContent = s.rounds ? (s.esc / s.rounds * 100).toFixed(1) + '%' : '—';
   document.getElementById('mAng').textContent = s.angN ? (s.angSum / s.angN).toFixed(1) + '°' : '—';
-  // （1/2）： +  4  +  roll/pitch（//Manual）
-  const dp = (a.kind === 'drone' && a.adapter && a.physOn) ? a : null;
-  document.getElementById('mFsm').textContent = dp ? (!a.bionic ? 'Pilot' : a.adapter.lastStateCN)
-    : (a.kind === 'drone' && !a.bionic ? 'Pilot' : '—');
-  const mo = dp ? a.adapter.lastMotors : null;
-  for (let i = 0; i < 4; i++) {
-    const norm = mo ? Math.min(1.5, Math.max(0, mo[i] / DronePhysics.HOVER)) : 0;   // Normalized（=1.0，=1.5）
-    document.getElementById('mM' + (i + 1)).style.width = (norm / 1.5 * 100).toFixed(0) + '%';
-  }
-  if (dp) {
-    const ee = a.phys.eulerAngles();
-    document.getElementById('mRoll').textContent = (ee.roll * 180 / Math.PI).toFixed(1) + '°';
-    document.getElementById('mPitch').textContent = (ee.pitch * 180 / Math.PI).toFixed(1) + '°';
-  } else {
-    document.getElementById('mRoll').textContent = '—';
-    document.getElementById('mPitch').textContent = '—';
-  }
   // 能量条显示
   const enPct = Math.max(0, Math.min(100, a.energy));
   document.getElementById('mEnergy').style.width = enPct + '%';
@@ -988,16 +901,6 @@ function animate(now) {
     pp.array[i * 3 + 1] += Math.sin(now * 0.001 + i) * 0.004;
   }
   pp.needsUpdate = true;
-
-  // 3：（100→0  10min， 0  LAND）
-  const bat = Math.max(0, 100 - (now - batStart) / 600000 * 100);
-  if (bat <= 0 && !autoLanded) {
-    autoLanded = true;
-    for (const a of agents) if (a.adapter) a.adapter.enterLand();
-    toast('🔋 Battery depleted → auto-landing（“🛫 Takeoff”Takeoff）');
-  }
-  document.getElementById('mBat').style.width = bat + '%';
-  document.getElementById('mBatV').textContent = bat.toFixed(0) + '%';
 
   updateHUD();
   renderer.render(scene, camera);
