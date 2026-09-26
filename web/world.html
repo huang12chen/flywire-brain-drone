@@ -560,49 +560,23 @@ function driveAgent(a, dtMs, now) {
   } else {
     // （）—— DroneAdapter  CRUISE 
     if (!dronePhys) {
-      // === 果蝇地面行走 / 飞行模式 ===
+      // === 果蝇：极弱随机漂移（漫无目的闲逛）===
       if (a.kind === 'fly') {
-        const dtSec = dtMs / 1000;
         if (a.isGrounded) {
-          // 地面行走模式：慢速随机移动
+          // 极弱随机漂移：像真实果蝇的闲逛，非程序驱动
           a.groundTimer -= dtMs;
           if (a.groundTimer <= 0) {
-            a.groundTimer = 800 + Math.random() * 2000; // 0.8~2.8秒换方向
+            a.groundTimer = 5000 + Math.random() * 10000; // 5~15秒换方向
             a.goalDir.set(Math.random() * 2 - 1, 0, Math.random() * 2 - 1).normalize();
           }
-          const walkSpeed = 0.02 + Math.random() * 0.03; // 0.02-0.05 慢速
-          a.vel.x += (a.goalDir.x * walkSpeed - a.vel.x * 0.01) * dtMs;
-          a.vel.z += (a.goalDir.z * walkSpeed - a.vel.z * 0.01) * dtMs;
-          a.vel.y = 0; // 地面不产生垂直速度
-          // 偶尔短飞：1%/秒概率
-          if (Math.random() < 0.001 * dtMs) {
-            a.isGrounded = false;
-            a.flyTimer = 2000; // 飞2秒
-            a.vel.y = 0.06;   // 向上起飞
-            toast('🪰 Short hop!');
-          }
-        } else {
-          // 飞行模式（短飞或逃逸中）
-          if (a.flyTimer > 0) {
-            a.flyTimer -= dtMs;
-            a.wanderT -= dtMs;
-            if (a.wanderT <= 0) {
-              a.wanderT = 1500 + Math.random() * 2500;
-              a.goalDir.set(Math.random() * 2 - 1, 0, Math.random() * 2 - 1).normalize();
-            }
-            a.vel.x += (a.goalDir.x * 0.0004 - a.vel.x * 0.004) * dtMs;
-            a.vel.z += (a.goalDir.z * 0.0004 - a.vel.z * 0.004) * dtMs;
-            // 短飞结束后自动降落
-            if (a.flyTimer <= 0) {
-              a.isGrounded = true;
-              a.flyTimer = 0;
-              a.vel.y = -0.02; // 缓慢降落
-            }
-          }
+          const driftSpeed = 0.005 + Math.random() * 0.01; // 0.005-0.015 极弱漂移
+          a.vel.x += (a.goalDir.x * driftSpeed - a.vel.x * 0.01) * dtMs;
+          a.vel.z += (a.goalDir.z * driftSpeed - a.vel.z * 0.01) * dtMs;
+          a.vel.y = 0;
         }
         // 降落回地面：飞行结束后y接近groundY时锁定到地面
         if (a.isGrounded && a.mesh.position.y > a.groundY + 0.1) {
-          a.vel.y = -0.03; // 向地面降落
+          a.vel.y = -0.03;
         }
         if (a.isGrounded && a.mesh.position.y <= a.groundY + 0.05) {
           a.mesh.position.y = a.groundY;
