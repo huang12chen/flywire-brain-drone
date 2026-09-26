@@ -297,7 +297,8 @@ const agents = []; let selAgent = null;
 function addAgent(kind, x, z) {
   const spec = BODIES[kind];
   const mesh = kind === 'fly' ? buildFlyMesh() : buildDroneMesh();
-  mesh.position.set(x ?? (Math.random() * 60 - 30), kind === 'fly' ? 8 : 14, z ?? (Math.random() * 60 - 30));   // ??  (0,0) 
+  const groundY = kind === 'fly' ? 1.5 : 14;
+  mesh.position.set(x ?? (Math.random() * 60 - 30), groundY, z ?? (Math.random() * 60 - 30));   // ??  (0,0) 
   scene.add(mesh);
   const a = {
     kind, spec, mesh, brain: new SNNRuntime(window.SNN_DATA),
@@ -305,6 +306,10 @@ function addAgent(kind, x, z) {
     bionic: true, mode: 'Bionic', escaped: false, lastDecision: 0, wanderT: 0, energy: 100, resting: false,
     stats: { rounds: 0, esc: 0, hit: 0, fa: 0, angSum: 0, angN: 0 },
     manualKeys: {}, wingT: Math.random() * 6,
+    groundY: groundY,
+    isGrounded: kind === 'fly',
+    groundTimer: 0,
+    flyTimer: 0,
   };
   agents.push(a); refreshAgentList(); selectAgent(a);
   toast(`${spec.name} added to world（${a.bionic ? 'Bionic' : 'Manual'}）`);
@@ -555,13 +560,64 @@ function driveAgent(a, dtMs, now) {
   } else {
     // （）—— DroneAdapter  CRUISE 
     if (!dronePhys) {
-      a.wanderT -= dtMs;
-      if (a.wanderT <= 0) {
-        a.wanderT = 1500 + Math.random() * 2500;
-        a.goalDir.set(Math.random() * 2 - 1, 0, Math.random() * 2 - 1).normalize();
+      // === 果蝇地面行走 / 飞行模式 ===
+      if (a.kind === 'fly') {
+        const dtSec = dtMs / 1000;
+        if (a.isGrounded) {
+          // 地面行走模式：慢速随机移动
+          a.groundTimer -= dtMs;
+          if (a.groundTimer <= 0) {
+            a.groundTimer = 800 + Math.random() * 2000; // 0.8~2.8秒换方向
+            a.goalDir.set(Math.random() * 2 - 1, 0, Math.random() * 2 - 1).normalize();
+          }
+          const walkSpeed = 0.02 + Math.random() * 0.03; // 0.02-0.05 慢速
+          a.vel.x += (a.goalDir.x * walkSpeed - a.vel.x * 0.01) * dtMs;
+          a.vel.z += (a.goalDir.z * walkSpeed - a.vel.z * 0.01) * dtMs;
+          a.vel.y = 0; // 地面不产生垂直速度
+          // 偶尔短飞：1%/秒概率
+          if (Math.random() < 0.001 * dtMs) {
+            a.isGrounded = false;
+            a.flyTimer = 2000; // 飞2秒
+            a.vel.y = 0.06;   // 向上起飞
+            toast('🪰 Short hop!');
+          }
+        } else {
+          // 飞行模式（短飞或逃逸中）
+          if (a.flyTimer > 0) {
+            a.flyTimer -= dtMs;
+            a.wanderT -= dtMs;
+            if (a.wanderT <= 0) {
+              a.wanderT = 1500 + Math.random() * 2500;
+              a.goalDir.set(Math.random() * 2 - 1, 0, Math.random() * 2 - 1).normalize();
+            }
+            a.vel.x += (a.goalDir.x * 0.0004 - a.vel.x * 0.004) * dtMs;
+            a.vel.z += (a.goalDir.z * 0.0004 - a.vel.z * 0.004) * dtMs;
+            // 短飞结束后自动降落
+            if (a.flyTimer <= 0) {
+              a.isGrounded = true;
+              a.flyTimer = 0;
+              a.vel.y = -0.02; // 缓慢降落
+            }
+          }
+        }
+        // 降落回地面：飞行结束后y接近groundY时锁定到地面
+        if (a.isGrounded && a.mesh.position.y > a.groundY + 0.1) {
+          a.vel.y = -0.03; // 向地面降落
+        }
+        if (a.isGrounded && a.mesh.position.y <= a.groundY + 0.05) {
+          a.mesh.position.y = a.groundY;
+          a.vel.y = 0;
+        }
+      } else {
+        // 非果蝇（drone）保持原有巡航
+        a.wanderT -= dtMs;
+        if (a.wanderT <= 0) {
+          a.wanderT = 1500 + Math.random() * 2500;
+          a.goalDir.set(Math.random() * 2 - 1, 0, Math.random() * 2 - 1).normalize();
+        }
+        a.vel.x += (a.goalDir.x * 0.0004 - a.vel.x * 0.004) * dtMs;
+        a.vel.z += (a.goalDir.z * 0.0004 - a.vel.z * 0.004) * dtMs;
       }
-      a.vel.x += (a.goalDir.x * 0.0004 - a.vel.x * 0.004) * dtMs;
-      a.vel.z += (a.goalDir.z * 0.0004 - a.vel.z * 0.004) * dtMs;
     }
 
     // SNN （≥40ms ， 25Hz）——3：（/ SNN）
@@ -580,6 +636,13 @@ function driveAgent(a, dtMs, now) {
       if (rr < bestOb) { bestOb = rr; ob = t; }
     }
     const cueT = th || ob;
+    // === 威胁触发自动起飞 ===
+    if (cueT && a.kind === 'fly' && a.isGrounded && !a.escaped) {
+      a.isGrounded = false;
+      a.flyTimer = 0; // 逃逸模式接管，不受短飞计时器限制
+      a.vel.y = 0.08; // 立即起飞
+      a.mesh.position.y = a.groundY + 0.5; // 脱离地面
+    }
     if (cueT && now - a.lastDecision > 40) {
       a.lastDecision = now;
       const cues = computeCues(cueT, a);
@@ -633,7 +696,15 @@ function driveAgent(a, dtMs, now) {
       a.vel.x += a.escapeVec.x * a.spec.accel * dtMs;
       a.vel.y += a.escapeVec.y * a.spec.accel * dtMs * 0.6;
       a.vel.z += a.escapeVec.z * a.spec.accel * dtMs;
-      if (now - a.escapeAt > 900) a.escaped = false;
+      if (now - a.escapeAt > 900) {
+        a.escaped = false;
+        // 逃逸结束，开始降落回地面
+        if (a.kind === 'fly') {
+          a.isGrounded = true;
+          a.vel.y = -0.03;
+          toast('🪰 Landing back to ground');
+        }
+      }
     }
   }
   if (!dronePhys) {
@@ -643,7 +714,9 @@ function driveAgent(a, dtMs, now) {
     a.vel.multiplyScalar(a.spec.drag);
     a.mesh.position.addScaledVector(a.vel, dtMs);
     const p = a.mesh.position;
-    if (p.y < (a.kind === 'fly' ? 3 : 6)) p.y = a.kind === 'fly' ? 3 : 6;
+    // 果蝇地面行走时y不小于groundY，飞行时允许更高
+    const minY = a.kind === 'fly' ? (a.isGrounded ? a.groundY : 3) : 6;
+    if (p.y < minY) p.y = minY;
     if (p.y > 60) p.y = 60;
     const d = Math.hypot(p.x, p.z); if (d > 230) { p.x *= 230 / d; p.z *= 230 / d; }
     // 
